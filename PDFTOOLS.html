@@ -15,7 +15,6 @@
     <!-- 引入 pdf-lib.js，用於修改 PDF -->
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <style>
-        /*  (7SPC) 科技感主題樣式 */
         :root {
             --spc-teal: #00a99d; /* 隊徽主色 */
             --spc-gold: #c5a15a; /* 隊徽金色 */
@@ -48,13 +47,13 @@
             justify-content: center;
             padding: 0.75rem 1.5rem;
             border-radius: 0.25rem;
-            font-weight: 700; /* 加粗字體 */
+            font-weight: 700;
             color: var(--spc-text-light);
             background-color: transparent;
             border: 1px solid var(--spc-teal);
             cursor: pointer;
             transition: all 0.2s ease-in-out;
-            text-transform: uppercase; /* 大寫文字 */
+            text-transform: uppercase;
         }
         .btn:hover {
             background-color: var(--spc-teal);
@@ -107,7 +106,7 @@
         }
         select {
             appearance: none;
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 7l3-3 3 3m0 6l-3 3-3-3'/%3e%3c/svg%3e");
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='rou[...]");
             background-position: right 0.5rem center;
             background-repeat: no-repeat;
             background-size: 1.5em 1.5em;
@@ -129,7 +128,6 @@
         .btn-icon {
             margin-right: 0.75rem;
         }
-        /* 浮動式錯誤訊息樣式 */
         #error-popup {
             display: none;
             position: fixed;
@@ -160,7 +158,8 @@
             <p class="mt-2 text-lg font-semibold" style="color: var(--spc-teal);">MEOW MEW MEOW MEW MEOW</p>
         </header>
 
-        <div class="grid grid-cols-1 md:grid-cols-1 gap-8">
+        <!-- 修改這一行: 3欄網格 (桌機水平排列, 手機仍為單欄) -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
 
             <!-- 功能 1: PDF 分割 -->
             <div class="card p-6">
