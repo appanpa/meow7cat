@@ -16,13 +16,13 @@
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <style>
         :root {
-            --spc-teal: #00a99d; /* 隊徽主色 */
-            --spc-gold: #c5a15a; /* 隊徽金色 */
-            --spc-dark-bg: #111827; /* 深灰色背景 */
-            --spc-card-bg: #1f2937; /* 卡片背景 */
-            --spc-border: #374151; /* 邊框色 */
-            --spc-text-light: #f9fafb; /* 亮色文字 */
-            --spc-text-dim: #9ca3af; /* 暗色文字 */
+            --spc-teal: #00a99d;
+            --spc-gold: #c5a15a;
+            --spc-dark-bg: #111827;
+            --spc-card-bg: #1f2937;
+            --spc-border: #374151;
+            --spc-text-light: #f9fafb;
+            --spc-text-dim: #9ca3af;
         }
         body {
             font-family: 'Orbitron', 'Noto Sans TC', sans-serif;
@@ -33,9 +33,15 @@
         .card {
             background-color: var(--spc-card-bg);
             border: 1px solid var(--spc-border);
-            border-radius: 0.25rem;
+            border-radius: 0.5rem;
             box-shadow: 0 0 15px rgba(0, 169, 157, 0.1);
             transition: all 0.3s ease;
+            /* 讓 card 撐滿格子 */
+            width: 100%;
+            min-height: 360px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
         .card:hover {
             border-color: var(--spc-teal);
@@ -106,7 +112,7 @@
         }
         select {
             appearance: none;
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='rou[...]");
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 7l3-3 3 3M7 13l3 3 3-3'/%3e%3c/svg%3e");
             background-position: right 0.5rem center;
             background-repeat: no-repeat;
             background-size: 1.5em 1.5em;
@@ -145,6 +151,20 @@
             min-width: 220px;
             text-align: center;
         }
+        /* 主要區塊放大和均分：3欄 */
+        .tools-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+        }
+        @media (min-width: 768px) {
+            .tools-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 2.5rem;
+            }
+        }
+        /* 讓狀態列與內容更寬 */
+        .max-w-4xl { max-width: 1200px !important; }
     </style>
 </head>
 <body class="p-4 md:p-8">
@@ -158,11 +178,10 @@
             <p class="mt-2 text-lg font-semibold" style="color: var(--spc-teal);">MEOW MEW MEOW MEW MEOW</p>
         </header>
 
-        <!-- 修改這一行: 3欄網格 (桌機水平排列, 手機仍為單欄) -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div class="tools-grid mb-2">
 
             <!-- 功能 1: PDF 分割 -->
-            <div class="card p-6">
+            <div class="card p-8">
                 <h2 class="text-xl font-bold text-white mb-4">檔案分割</h2>
                 <div class="space-y-4">
                     <div>
@@ -178,7 +197,7 @@
             </div>
 
             <!-- 功能 2: PDF 合併 -->
-            <div class="card p-6">
+            <div class="card p-8">
                 <h2 class="text-xl font-bold text-white mb-4">檔案合併</h2>
                 <div class="space-y-4">
                     <div>
@@ -191,7 +210,7 @@
             </div>
 
             <!-- 功能 3: PDF 加入頁碼 -->
-            <div class="card p-6">
+            <div class="card p-8">
                 <h2 class="text-xl font-bold text-white mb-4">檔案頁碼標記</h2>
                 <div class="space-y-4">
                     <div>
@@ -208,9 +227,7 @@
                     <button id="number-btn" class="btn w-full whitespace-nowrap"><i class="fas fa-sort-numeric-down btn-icon"></i><span class="btn-text">執行標記</span></button>
                 </div>
             </div>
-            
         </div>
-        
         <div id="status" class="text-center mt-8 font-medium text-lg" style="color: var(--spc-text-dim);">狀態：待命中...</div>
     </div>
 
@@ -223,7 +240,7 @@
             clearTimeout(window._errTimeout);
             window._errTimeout = setTimeout(() => {
                 popup.style.display = 'none';
-            }, 3500); // 3.5秒後自動隱藏
+            }, 3500);
         }
 
         const { PDFDocument, rgb, StandardFonts } = PDFLib;
@@ -235,15 +252,15 @@
         const statusDiv = document.getElementById('status');
 
         // --- 通用函式 ---
-        function showLoading(button) { 
-            button.disabled = true; 
-            button.innerHTML = `<div class="loader"></div><span class="btn-text">處理中...</span>`; 
+        function showLoading(button) {
+            button.disabled = true;
+            button.innerHTML = `<div class="loader"></div><span class="btn-text">處理中...</span>`;
         }
-        function hideLoading(button, originalHTML) { 
-            button.disabled = false; 
+        function hideLoading(button, originalHTML) {
+            button.disabled = false;
             button.innerHTML = originalHTML;
         }
-        function updateStatus(message, isError = false) { 
+        function updateStatus(message, isError = false) {
             statusDiv.textContent = `狀態：${message}`;
             statusDiv.style.color = isError ? '#ef4444' : 'var(--spc-teal)';
         }
@@ -257,7 +274,6 @@
             document.body.removeChild(link);
             URL.revokeObjectURL(link.href);
         }
-        // 簡化檔名顯示邏輯
         function updateFileNameDisplay(inputElement, nameElement) {
             inputElement.addEventListener('change', () => {
                 const defaultText = nameElement.dataset.defaultText;
@@ -284,7 +300,7 @@
                 await action();
             } catch (e) {
                 updateStatus(`錯誤 - ${e.message}`, true);
-                showError(e.message); // 顯示浮動錯誤訊息
+                showError(e.message);
             } finally {
                 hideLoading(button, originalHTML);
             }
@@ -295,17 +311,14 @@
             if (splitFileInput.files.length === 0) throw new Error('未選擇目標檔案。');
             const startPage = parseInt(startPageInput.value), endPage = parseInt(endPageInput.value);
             if (isNaN(startPage) || isNaN(endPage) || startPage <= 0 || startPage > endPage) throw new Error('頁碼範圍無效。');
-            
             updateStatus('正在讀取並分割文件...', false);
             const existingPdfBytes = await splitFileInput.files[0].arrayBuffer();
             const pdfDoc = await PDFDocument.load(existingPdfBytes);
             if (endPage > pdfDoc.getPageCount()) throw new Error(`頁碼範圍超出總頁數 (${pdfDoc.getPageCount()})。`);
-            
             const newPdfDoc = await PDFDocument.create();
             const pageIndices = Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i - 1);
             const copiedPages = await newPdfDoc.copyPages(pdfDoc, pageIndices);
             copiedPages.forEach(page => newPdfDoc.addPage(page));
-            
             const newPdfBytes = await newPdfDoc.save();
             await downloadPdf(newPdfBytes, `split_${splitFileInput.files[0].name}`);
             updateStatus('分割任務完成，已開始下載。');
@@ -314,7 +327,6 @@
         // --- 功能 2: PDF 合併 ---
         mergeBtn.addEventListener('click', () => handleButtonClick(mergeBtn, async () => {
             if (mergeFileInput.files.length < 2) throw new Error('合併任務至少需要兩個檔案。');
-            
             updateStatus('正在合併所有檔案...', false);
             const mergedPdf = await PDFDocument.create();
             const files = Array.from(mergeFileInput.files).sort((a, b) => a.name.localeCompare(b.name));
@@ -324,7 +336,6 @@
                 const copiedPages = await mergedPdf.copyPages(pdfDoc, pdfDoc.getPageIndices());
                 copiedPages.forEach(page => mergedPdf.addPage(page));
             }
-            
             const mergedPdfBytes = await mergedPdf.save();
             const outputName = mergeOutputNameInput.value.trim() || 'combined_report.pdf';
             await downloadPdf(mergedPdfBytes, outputName.endsWith('.pdf') ? outputName : `${outputName}.pdf`);
@@ -334,7 +345,6 @@
         // --- 功能 3: PDF 加入頁碼 ---
         numberBtn.addEventListener('click', () => handleButtonClick(numberBtn, async () => {
             if (numberFileInput.files.length === 0) throw new Error('未選擇目標檔案。');
-            
             updateStatus('正在標記證物頁碼...', false);
             const existingPdfBytes = await numberFileInput.files[0].arrayBuffer();
             const pdfDoc = await PDFDocument.load(existingPdfBytes);
@@ -342,7 +352,6 @@
             const pages = pdfDoc.getPages();
             const fontSize = parseInt(fontSizeInput.value) || 12;
             const position = positionSelect.value;
-            
             for (let i = 0; i < pages.length; i++) {
                 const page = pages[i];
                 const { width, height } = page.getSize();
@@ -351,10 +360,8 @@
                 const textWidth = helveticaFont.widthOfTextAtSize(pageNumberText, fontSize);
                 if (position === 'center') x = width / 2 - textWidth / 2;
                 else x = width - textWidth - 40;
-                // 頁碼顏色為黑色
                 page.drawText(pageNumberText, { x, y, size: fontSize, font: helveticaFont, color: rgb(0, 0, 0) });
             }
-            
             const newPdfBytes = await pdfDoc.save();
             await downloadPdf(newPdfBytes, `paginated_${numberFileInput.files[0].name}`);
             updateStatus('頁碼標記完成，已開始下載。');
