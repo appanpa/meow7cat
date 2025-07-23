@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>線上工具箱</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            background-color: #f9fafb;
+        }
+        .tool-card {
+            background-color: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            transition: all 0.3s ease-in-out;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .tool-card:hover {
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            transform: translateY(-4px);
+        }
+        .tool-card-content {
+            padding: 1.5rem;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .tool-card-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+        .tool-card-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1f2937;
+        }
+        .tool-card-description {
+            color: #4b5563;
+            margin-top: 0.5rem;
+            flex-grow: 1;
+        }
+        .tool-card-button {
+            display: block;
+            text-align: center;
+            padding: 0.75rem;
+            margin-top: 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            color: white;
+            background-color: #4f46e5;
+            transition: background-color 0.3s;
+            text-decoration: none;
+        }
+        .tool-card-button:hover {
+            background-color: #4338ca;
+        }
+        .coming-soon-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: #fbbf24;
+            color: #92400e;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+        .disabled-card {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .disabled-card:hover {
+            transform: none;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-6xl mx-auto">
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-gray-800"> </h1>
+            <p class="text-gray-600 mt-3 text-lg">一個集合多種實用工具的網站，讓您的工作更有效率。</p>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+
+            <!-- 工具 1: 智慧型 PDF 工具 (已完成) -->
+            <div class="tool-card">
+                <div class="tool-card-content">
+                    <i class="fas fa-file-pdf tool-card-icon text-red-500"></i>
+                    <h3 class="tool-card-title">PDF TOOLS</h3>
+                    <p class="tool-card-description">提供 PDF 分割、合併、加上頁碼等基礎功能。</p>
+                    <!-- 更新後的連結 -->
+                    <a href="https://sites.google.com/view/mewmewmeow/pdf工具" class="tool-card-button" target="_blank" rel="noopener noreferrer">前往使用</a>
+                </div>
+            </div>
+
+            <!-- 工具 2: 車型軌跡視覺化工具 -->
+            <div class="tool-card">
+                <div class="tool-card-content">
+                    <i class="fas fa-car tool-card-icon text-blue-500"></i>
+                    <h3 class="tool-card-title">車軌視覺化</h3>
+                    <p class="tool-card-description">結合路線規劃與 AI 分析，不僅呈現軌跡，更能洞察先機。</p>
+                    <a href="https://sites.google.com/view/mewmewmeow/車行軌跡視覺化" class="tool-card-button" target="_blank" rel="noopener noreferrer">前往使用</a>
+                </div>
+            </div>
+
+            <!-- 工具 3: 思考中 (未來開發範例) -->
+            <div class="tool-card disabled-card relative">
+                <div class="coming-soon-badge">敬請期待</div>
+                <div class="tool-card-content">
+                    <i class="fas fa-qrcode tool-card-icon text-green-500"></i>
+                    <h3 class="tool-card-title">我還在思考中</h3>
+                    <p class="tool-card-description">輸入網址或文字，立即產生可自訂樣式的 QR Code 圖片。</p>
+                    <a href="工具URL" class="tool-card-button" style="background-color: #9ca3af; cursor: not-allowed;">開發中</a>
+                </div>
+             </div>
+            
+            <!-- 工具 4: 思考中 (未來開發範例) -->
+            <div class="tool-card disabled-card relative">
+                <div class="coming-soon-badge">敬請期待</div>
+                <div class="tool-card-content">
+                    <i class="fas fa-qrcode tool-card-icon text-green-500"></i>
+                    <h3 class="tool-card-title">我還在思考中</h3>
+                    <p class="tool-card-description">思考中。</p>
+                    <a href="工具URL" class="tool-card-button" style="background-color: #9ca3af; cursor: not-allowed;">開發中</a>
+                </div>
+             </div>
+             <!-- 您可以在此處繼續增加更多工具卡片... -->
+             <!-- 您可以在此處繼續增加更多工具卡片... -->
+             <!-- 您可以在此處繼續增加更多工具卡片... -->
+             <!-- 您可以在此處繼續增加更多工具卡片... -->
+             <!-- 您可以在此處繼續增加更多工具卡片... -->
+        </div>
+    </div>
+
+</body>
+</html>
