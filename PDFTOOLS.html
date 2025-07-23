@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>保七總隊 PDF 工具</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Font Awesome (提供圖示) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- 引入 Google Fonts (Orbitron) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    <!-- 引入 pdf-lib.js，用於修改 PDF -->
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <style>
+        /* 保七總隊 (7SPC) 科技感主題樣式 */
+        :root {
+            --spc-teal: #00a99d; /* 隊徽主色 */
+            --spc-gold: #c5a15a; /* 隊徽金色 */
+            --spc-dark-bg: #111827; /* 深灰色背景 */
+            --spc-card-bg: #1f2937; /* 卡片背景 */
+            --spc-border: #374151; /* 邊框色 */
+            --spc-text-light: #f9fafb; /* 亮色文字 */
+            --spc-text-dim: #9ca3af; /* 暗色文字 */
+        }
+        body {
+            font-family: 'Orbitron', 'Noto Sans TC', sans-serif;
+            background-color: var(--spc-dark-bg);
+            color: var(--spc-text-light);
+            overflow-x: hidden;
+        }
+        .card {
+            background-color: var(--spc-card-bg);
+            border: 1px solid var(--spc-border);
+            border-radius: 0.25rem;
+            box-shadow: 0 0 15px rgba(0, 169, 157, 0.1);
+            transition: all 0.3s ease;
+        }
+        .card:hover {
+            border-color: var(--spc-teal);
+            box-shadow: 0 0 20px rgba(0, 169, 157, 0.3);
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.25rem;
+            font-weight: 700; /* 加粗字體 */
+            color: var(--spc-text-light);
+            background-color: transparent;
+            border: 1px solid var(--spc-teal);
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            text-transform: uppercase; /* 大寫文字 */
+        }
+        .btn:hover {
+            background-color: var(--spc-teal);
+            color: var(--spc-dark-bg);
+            box-shadow: 0 0 15px var(--spc-teal);
+        }
+        .btn:disabled {
+            border-color: #4b5563;
+            color: #6b7280;
+            background-color: transparent;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        .file-input-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            padding: 1.5rem 1.25rem;
+            border: 1px dashed var(--spc-border);
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: var(--spc-text-dim);
+        }
+        .file-input-label:hover {
+            border-style: solid;
+            border-color: var(--spc-teal);
+            background-color: rgba(0, 169, 157, 0.05);
+            color: var(--spc-text-light);
+        }
+        input[type="file"] { display: none; }
+        input[type="number"], input[type="text"], select {
+            background-color: var(--spc-dark-bg);
+            border: 1px solid var(--spc-border);
+            color: var(--spc-text-light);
+            padding: 0.75rem;
+            border-radius: 0.25rem;
+            transition: all 0.2s ease;
+            font-family: 'Orbitron', 'Noto Sans TC', sans-serif;
+        }
+        input::placeholder {
+            color: var(--spc-text-dim);
+            opacity: 0.6;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--spc-teal);
+            box-shadow: 0 0 0 2px rgba(0, 169, 157, 0.5);
+        }
+        select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem;
+        }
+        .loader {
+            border: 4px solid rgba(249, 250, 251, 0.2);
+            border-top: 4px solid var(--spc-text-light);
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            margin-right: 0.75rem;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .btn-icon {
+            margin-right: 0.75rem;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-4xl mx-auto">
+        <header class="text-center mb-12 border-b-2 pb-4" style="border-color: var(--spc-gold);">
+            <h1 class="text-2xl md:text-4xl font-bold text-white tracking-wider">INSPIRATION MUSHROOM</h1>
+            <p class="mt-2 text-lg font-semibold" style="color: var(--spc-teal);">MEOW MEW MEOW MEW MEOW</p>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-1 gap-8">
+
+            <!-- 功能 1: PDF 分割 -->
+            <div class="card p-6">
+                <h2 class="text-xl font-bold text-white mb-4">檔案分割</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label for="split-file" class="file-input-label"><i class="fas fa-file-import"></i><span id="split-file-name">選擇目標檔案</span></label>
+                        <input type="file" id="split-file" accept=".pdf">
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <input type="number" id="start-page" placeholder="起始頁碼" class="w-full">
+                        <input type="number" id="end-page" placeholder="結束頁碼" class="w-full">
+                    </div>
+                    <button id="split-btn" class="btn w-full whitespace-nowrap"><i class="fas fa-cut btn-icon"></i><span class="btn-text">執行分割</span></button>
+                </div>
+            </div>
+
+            <!-- 功能 2: PDF 合併 -->
+            <div class="card p-6">
+                <h2 class="text-xl font-bold text-white mb-4">檔案合併</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label for="merge-files" class="file-input-label"><i class="fas fa-layer-group"></i><span id="merge-files-name">選擇多個檔案</span></label>
+                        <input type="file" id="merge-files" accept=".pdf" multiple>
+                    </div>
+                    <input type="text" id="merge-output-name" placeholder="輸出檔案名稱 (預設: combined_report.pdf)" class="w-full">
+                    <button id="merge-btn" class="btn w-full whitespace-nowrap"><i class="fas fa-compress-arrows-alt btn-icon"></i><span class="btn-text">執行合併</span></button>
+                </div>
+            </div>
+
+            <!-- 功能 3: PDF 加入頁碼 -->
+            <div class="card p-6">
+                <h2 class="text-xl font-bold text-white mb-4">檔案頁碼標記</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label for="number-file" class="file-input-label"><i class="fas fa-file-signature"></i><span id="number-file-name">選擇目標檔案</span></label>
+                        <input type="file" id="number-file" accept=".pdf">
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <input type="number" id="font-size" placeholder="字體大小 (預設: 12)" class="w-full">
+                        <select id="position" class="w-full">
+                            <option value="center">位置: 底部置中</option>
+                            <option value="corner">位置: 底部角落</option>
+                        </select>
+                    </div>
+                    <button id="number-btn" class="btn w-full whitespace-nowrap"><i class="fas fa-sort-numeric-down btn-icon"></i><span class="btn-text">執行標記</span></button>
+                </div>
+            </div>
+            
+        </div>
+        
+        <div id="status" class="text-center mt-8 font-medium text-lg" style="color: var(--spc-text-dim);">狀態：待命中...</div>
+    </div>
+
+    <script>
+        const { PDFDocument, rgb, StandardFonts } = PDFLib;
+
+        // --- DOM 元素 ---
+        const splitFileInput = document.getElementById('split-file'), splitBtn = document.getElementById('split-btn'), startPageInput = document.getElementById('start-page'), endPageInput = document.getElementById('end-page'), splitFileName = document.getElementById('split-file-name');
+        const mergeFileInput = document.getElementById('merge-files'), mergeBtn = document.getElementById('merge-btn'), mergeFilesName = document.getElementById('merge-files-name'), mergeOutputNameInput = document.getElementById('merge-output-name');
+        const numberFileInput = document.getElementById('number-file'), numberBtn = document.getElementById('number-btn'), fontSizeInput = document.getElementById('font-size'), positionSelect = document.getElementById('position'), numberFileName = document.getElementById('number-file-name');
+        const statusDiv = document.getElementById('status');
+
+        // --- 通用函式 ---
+        function showLoading(button) { 
+            button.disabled = true; 
+            button.innerHTML = `<div class="loader"></div><span class="btn-text">處理中...</span>`; 
+        }
+        function hideLoading(button, originalHTML) { 
+            button.disabled = false; 
+            button.innerHTML = originalHTML;
+        }
+        function updateStatus(message, isError = false) { 
+            statusDiv.textContent = `狀態：${message}`;
+            statusDiv.style.color = isError ? '#ef4444' : 'var(--spc-teal)';
+        }
+        async function downloadPdf(pdfBytes, filename) {
+            const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+        }
+        // 【修正處】簡化檔名顯示邏輯
+        function updateFileNameDisplay(inputElement, nameElement) {
+            inputElement.addEventListener('change', () => {
+                const defaultText = nameElement.dataset.defaultText;
+                if (inputElement.files.length > 1) {
+                    nameElement.textContent = `${inputElement.files.length} 個檔案已選取`;
+                } else if (inputElement.files.length === 1) {
+                    nameElement.textContent = `檔案: ${inputElement.files[0].name}`;
+                } else {
+                    nameElement.textContent = defaultText;
+                }
+            });
+            nameElement.dataset.defaultText = nameElement.textContent;
+        }
+        updateFileNameDisplay(splitFileInput, splitFileName);
+        updateFileNameDisplay(mergeFileInput, mergeFilesName);
+        updateFileNameDisplay(numberFileInput, numberFileName);
+
+        // --- 功能按鈕通用處理 ---
+        async function handleButtonClick(button, action) {
+            const originalHTML = button.innerHTML;
+            showLoading(button);
+            updateStatus('執行指令中...', false);
+            try {
+                await action();
+            } catch (e) {
+                updateStatus(`錯誤 - ${e.message}`, true);
+            } finally {
+                hideLoading(button, originalHTML);
+            }
+        }
+
+        // --- 功能 1: PDF 分割 ---
+        splitBtn.addEventListener('click', () => handleButtonClick(splitBtn, async () => {
+            if (splitFileInput.files.length === 0) throw new Error('未選擇目標檔案。');
+            const startPage = parseInt(startPageInput.value), endPage = parseInt(endPageInput.value);
+            if (isNaN(startPage) || isNaN(endPage) || startPage <= 0 || startPage > endPage) throw new Error('頁碼範圍無效。');
+            
+            updateStatus('正在讀取並分割文件...', false);
+            const existingPdfBytes = await splitFileInput.files[0].arrayBuffer();
+            const pdfDoc = await PDFDocument.load(existingPdfBytes);
+            if (endPage > pdfDoc.getPageCount()) throw new Error(`頁碼範圍超出總頁數 (${pdfDoc.getPageCount()})。`);
+            
+            const newPdfDoc = await PDFDocument.create();
+            const pageIndices = Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i - 1);
+            const copiedPages = await newPdfDoc.copyPages(pdfDoc, pageIndices);
+            copiedPages.forEach(page => newPdfDoc.addPage(page));
+            
+            const newPdfBytes = await newPdfDoc.save();
+            await downloadPdf(newPdfBytes, `split_${splitFileInput.files[0].name}`);
+            updateStatus('分割任務完成，已開始下載。');
+        }));
+
+        // --- 功能 2: PDF 合併 ---
+        mergeBtn.addEventListener('click', () => handleButtonClick(mergeBtn, async () => {
+            if (mergeFileInput.files.length < 2) throw new Error('合併任務至少需要兩個檔案。');
+            
+            updateStatus('正在合併所有檔案...', false);
+            const mergedPdf = await PDFDocument.create();
+            const files = Array.from(mergeFileInput.files).sort((a, b) => a.name.localeCompare(b.name));
+            for (const file of files) {
+                const pdfBytes = await file.arrayBuffer();
+                const pdfDoc = await PDFDocument.load(pdfBytes);
+                const copiedPages = await mergedPdf.copyPages(pdfDoc, pdfDoc.getPageIndices());
+                copiedPages.forEach(page => mergedPdf.addPage(page));
+            }
+            
+            const mergedPdfBytes = await mergedPdf.save();
+            const outputName = mergeOutputNameInput.value.trim() || 'combined_report.pdf';
+            await downloadPdf(mergedPdfBytes, outputName.endsWith('.pdf') ? outputName : `${outputName}.pdf`);
+            updateStatus('合併任務完成，已開始下載。');
+        }));
+
+        // --- 功能 3: PDF 加入頁碼 ---
+        numberBtn.addEventListener('click', () => handleButtonClick(numberBtn, async () => {
+            if (numberFileInput.files.length === 0) throw new Error('未選擇目標檔案。');
+            
+            updateStatus('正在標記證物頁碼...', false);
+            const existingPdfBytes = await numberFileInput.files[0].arrayBuffer();
+            const pdfDoc = await PDFDocument.load(existingPdfBytes);
+            const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+            const pages = pdfDoc.getPages();
+            const fontSize = parseInt(fontSizeInput.value) || 12;
+            const position = positionSelect.value;
+            
+            for (let i = 0; i < pages.length; i++) {
+                const page = pages[i];
+                const { width, height } = page.getSize();
+                const pageNumberText = `${i + 1}`;
+                let x, y = 30;
+                const textWidth = helveticaFont.widthOfTextAtSize(pageNumberText, fontSize);
+                if (position === 'center') x = width / 2 - textWidth / 2;
+                else x = width - textWidth - 40;
+                // 【修正處】將頁碼顏色改為黑色，以確保可見性
+                page.drawText(pageNumberText, { x, y, size: fontSize, font: helveticaFont, color: rgb(0, 0, 0) });
+            }
+            
+            const newPdfBytes = await pdfDoc.save();
+            await downloadPdf(newPdfBytes, `paginated_${numberFileInput.files[0].name}`);
+            updateStatus('頁碼標記完成，已開始下載。');
+        }));
+    </script>
+</body>
+</html>
