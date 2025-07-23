@@ -107,7 +107,7 @@
         }
         select {
             appearance: none;
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 7l3-3 3 3m0 6l-3 3-3-3'/%3e%3c/svg%3e");
             background-position: right 0.5rem center;
             background-repeat: no-repeat;
             background-size: 1.5em 1.5em;
@@ -129,9 +129,30 @@
         .btn-icon {
             margin-right: 0.75rem;
         }
+        /* 浮動式錯誤訊息樣式 */
+        #error-popup {
+            display: none;
+            position: fixed;
+            left: 50%;
+            top: 32px;
+            transform: translateX(-50%);
+            background-color: #ef4444;
+            color: #fff;
+            padding: 16px 32px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+            z-index: 9999;
+            font-size: 16px;
+            opacity: 0.95;
+            min-width: 220px;
+            text-align: center;
+        }
     </style>
 </head>
 <body class="p-4 md:p-8">
+
+    <!-- 浮動式錯誤訊息容器 -->
+    <div id="error-popup"></div>
 
     <div class="max-w-4xl mx-auto">
         <header class="text-center mb-12 border-b-2 pb-4" style="border-color: var(--spc-gold);">
@@ -195,6 +216,17 @@
     </div>
 
     <script>
+        // 浮動式錯誤訊息顯示函式
+        function showError(message) {
+            const popup = document.getElementById('error-popup');
+            popup.innerText = message;
+            popup.style.display = 'block';
+            clearTimeout(window._errTimeout);
+            window._errTimeout = setTimeout(() => {
+                popup.style.display = 'none';
+            }, 3500); // 3.5秒後自動隱藏
+        }
+
         const { PDFDocument, rgb, StandardFonts } = PDFLib;
 
         // --- DOM 元素 ---
@@ -226,7 +258,7 @@
             document.body.removeChild(link);
             URL.revokeObjectURL(link.href);
         }
-        // 【修正處】簡化檔名顯示邏輯
+        // 簡化檔名顯示邏輯
         function updateFileNameDisplay(inputElement, nameElement) {
             inputElement.addEventListener('change', () => {
                 const defaultText = nameElement.dataset.defaultText;
@@ -253,6 +285,7 @@
                 await action();
             } catch (e) {
                 updateStatus(`錯誤 - ${e.message}`, true);
+                showError(e.message); // 顯示浮動錯誤訊息
             } finally {
                 hideLoading(button, originalHTML);
             }
@@ -319,7 +352,7 @@
                 const textWidth = helveticaFont.widthOfTextAtSize(pageNumberText, fontSize);
                 if (position === 'center') x = width / 2 - textWidth / 2;
                 else x = width - textWidth - 40;
-                // 【修正處】將頁碼顏色改為黑色，以確保可見性
+                // 頁碼顏色為黑色
                 page.drawText(pageNumberText, { x, y, size: fontSize, font: helveticaFont, color: rgb(0, 0, 0) });
             }
             
