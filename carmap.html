@@ -33,7 +33,6 @@ html,body {height:100%;margin:0;font-family: 'Inter', 'Noto Sans TC', sans-serif
 .track-panel .track-date-list {margin-bottom:.8em;}
 .track-panel .date-item {margin-right:1em;margin-bottom:.3em;display:inline-block;}
 .track-panel .track-toggle-all {margin-bottom:.7em;}
-.track-panel .date-item input[type=checkbox] {transform:scale(1.2);margin-right:.25em;}
 .track-panel .track-toggle-all input[type=checkbox] {transform:scale(1.2);margin-right:.25em;}
 .track-panel .track-toggle-all {font-weight:700;}
 @media (max-width:800px){.sidebar{width:84vw;}}
@@ -261,13 +260,17 @@ function drawTracks() {
     lngCol = parsedHeader[clng];
     // 依日期分組（只取年月日部分）
     allTracks = {}; trackOrder = [];
-    parsedRows.forEach((row,i)=>{
+    parsedRows.forEach((row, i)=>{
         let t = row[timeCol];
         let d = t ? (t.toString().slice(0,10)) : '未知日期';
         if (!allTracks[d]) { allTracks[d]=[]; trackOrder.push(d);}
-        let lat = parseFloat(row[latCol]);
-        let lng = parseFloat(row[lngCol]);
-        allTracks[d].push(Object.assign({lat:lat,lng:lng,_idx:i+1},row));
+        allTracks[d].push(row);
+    });
+    // 依時間排序，每天資料編號
+    trackOrder.forEach(date => {
+      let rows = allTracks[date];
+      rows.sort((a, b) => new Date(a[timeCol]) - new Date(b[timeCol]));
+      rows.forEach((row, idx) => row._track_idx = idx + 1); //每日順序編號
     });
     // 清除所有原本軌跡
     Object.values(trackLayers).forEach(obj=>{
@@ -278,22 +281,20 @@ function drawTracks() {
     // 繪製每日期的軌跡
     trackOrder.forEach((d,idx)=>{
         let color = trackColorSet[idx%trackColorSet.length];
-        let rows = allTracks[d].filter(pt=>!isNaN(pt.lat)&&!isNaN(pt.lng));
+        let rows = allTracks[d].filter(pt=>!isNaN(pt[latCol])&&!isNaN(pt[lngCol]));
         if(rows.length<2) return;
-        // Polyline
-        let latlngs = rows.map(pt=>[pt.lat,pt.lng]);
+        let latlngs = rows.map(pt=>[pt[latCol],pt[lngCol]]);
         let poly = L.polyline(latlngs, {color:color,weight:5,opacity:0.87}).addTo(map);
         poly.arrowheads({size:'10px',yawn:50,frequency:'endonly',color:color});
-        // Markers
         let markers = rows.map((pt,i)=>{
-            let marker = L.marker([pt.lat,pt.lng],{
+            let marker = L.marker([pt[latCol],pt[lngCol]],{
                 icon:L.divIcon({
                     className:'track-marker',
-                    html:`${pt._idx}`,
+                    html:`${pt._track_idx}`,
                     iconSize:[30,30]
                 })
             }).addTo(map);
-            marker.bindPopup(`<div style="font-size:.97em;"><b>編號:</b> ${pt._idx}<br>${
+            marker.bindPopup(`<div style="font-size:.97em;"><b>編號:</b> ${pt._track_idx}<br>${
                 parsedHeader.map(h=>`<b>${h}:</b> ${pt[h]??''}`).join('<br>')
             }</div>`);
             marker.on('mouseover',function(){marker.openPopup();});
@@ -304,22 +305,19 @@ function drawTracks() {
     });
     // 更新控制面板
     updateTrackPanel();
-    // Google Maps按鈕顯示
     document.getElementById('btnGoogleRoute').style.display = '';
     document.getElementById('trackControlPanel').style.display = '';
-    // 預覽
     let preview = document.getElementById('previewContent');
     if (preview) {
         let first = allTracks[trackOrder[0]];
         let html = '<table style="width:100%;font-size:.95em;"><tr><th>#</th>'+parsedHeader.map(h=>`<th>${h}</th>`).join('')+'</tr>';
         first.slice(0,20).forEach((row,i)=>{
-            html += `<tr><td>${row._idx}</td>`+parsedHeader.map(h=>`<td>${row[h]??''}</td>`).join('')+'</tr>';
+            html += `<tr><td>${row._track_idx}</td>`+parsedHeader.map(h=>`<td>${row[h]??''}</td>`).join('')+'</tr>';
         });
         if(first.length>20) html += `<tr><td colspan="${parsedHeader.length+1}">...共${first.length}筆</td></tr>`;
         html += '</table>';
         preview.innerHTML = html;
     }
-    // 智慧視野
     fitTracks();
 }
 
@@ -340,7 +338,7 @@ function updateTrackPanel(){
     panel.innerHTML = html;
 }
 
-// 全選/全不選切換
+// 全選/全不選
 function toggleAllTracks(cb){
     trackOrder.forEach((d,idx)=>{
         let el = document.getElementById('chkTrack'+idx);
@@ -364,15 +362,14 @@ function toggleTrack(date,cb){
     fitTracks();
 }
 
-// 智慧視野（自動縮放到已顯示的軌跡範圍）
+// 智慧視野
 function fitTracks(){
     let bounds = null;
-    trackOrder.forEach(d=>{
-        let cb = document.getElementById('chkTrack'+trackOrder.indexOf(d));
+    trackOrder.forEach((d,idx)=>{
+        let cb = document.getElementById('chkTrack'+idx);
         if(cb && cb.checked && trackLayers[d]){
             let b = trackLayers[d].poly.getBounds();
-            if(!bounds) bounds = b;
-            else bounds = bounds.extend(b);
+            bounds = bounds ? bounds.extend(b) : b;
         }
     });
     if(bounds) map.fitBounds(bounds,{padding:[24,24]});
@@ -381,18 +378,18 @@ function fitTracks(){
 // Google Maps 路線規劃
 document.getElementById('btnGoogleRoute').onclick = function(){
     let pts=[];
-    trackOrder.forEach(d=>{
-        let cb = document.getElementById('chkTrack'+trackOrder.indexOf(d));
+    trackOrder.forEach((d,idx)=>{
+        let cb = document.getElementById('chkTrack'+idx);
         if(cb && cb.checked && allTracks[d]){
             allTracks[d].forEach(pt=>{
-                if(!isNaN(pt.lat)&&!isNaN(pt.lng)){
-                    pts.push({lat:pt.lat,lng:pt.lng});
+                let lat = pt[latCol], lng = pt[lngCol];
+                if(!isNaN(lat)&&!isNaN(lng)){
+                    pts.push({lat:lat,lng:lng});
                 }
             });
         }
     });
     if(pts.length<2){alert('請先選擇至少兩個點！');return;}
-    // Google Maps Directions API格式：&waypoints=lat1,lng1|lat2,lng2...
     let origin = `${pts[0].lat},${pts[0].lng}`;
     let destination = `${pts[pts.length-1].lat},${pts[pts.length-1].lng}`;
     let waypoints = pts.slice(1,-1).map(pt=>`${pt.lat},${pt.lng}`).join('|');
