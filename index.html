@@ -3,64 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 防止搜尋引擎收錄 -->
+    <meta name="robots" content="noindex, nofollow">
     <title>線上工具箱</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="icon" href="https://cdn.jsdelivr.net/gh/appanpa/meow7cat/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body {
+        html, body {
             font-family: 'Inter', 'Noto Sans TC', sans-serif;
-            background-color: #1f2937; /* 灰黑背景 */
+            background-color: #1f2937;
             color: #f9fafb;
+            min-height: 100vh;
         }
-
+        main {
+            max-width: 72rem;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
         .tool-card {
-            background-color: #374151; /* 淺灰色工具區塊背景 */
+            background-color: #374151;
             border: 1px solid #4b5563;
             border-radius: 0.75rem;
-            transition: all 0.3s ease-in-out;
+            transition: all 0.3s cubic-bezier(.4,0,.2,1);
             overflow: hidden;
             display: flex;
             flex-direction: column;
             position: relative;
+            min-height: 280px;
         }
-
-        .tool-card:hover {
+        .tool-card:hover:not([aria-disabled="true"]) {
             border-color: #9ca3af;
-            box-shadow: 0 0 15px 0px rgba(156, 163, 175, 0.2);
-            transform: translateY(-5px);
+            box-shadow: 0 6px 24px 0 rgba(156,163,175,.23);
+            transform: translateY(-6px) scale(1.02);
         }
-
         .tool-card-content {
             padding: 1.5rem;
             flex-grow: 1;
             display: flex;
             flex-direction: column;
         }
-
         .tool-card-icon {
             font-size: 2.5rem;
             margin-bottom: 1rem;
+            transition: transform 0.3s;
         }
-
+        .tool-card:hover .tool-card-icon:not([aria-disabled="true"]) {
+            transform: scale(1.15) rotate(-5deg);
+        }
         .tool-card-title {
-            font-size: 1.5rem;
+            font-size: 1.35rem;
             font-weight: 700;
-            color: #ffffff;
+            color: #fff;
+            margin-bottom: .25rem;
         }
-
         .tool-card-description {
             color: #d1d5db;
             margin-top: 0.5rem;
             flex-grow: 1;
+            font-size: 1rem;
         }
-
         .tool-card-button {
             display: block;
             text-align: center;
-            padding: 0.75rem;
+            padding: 0.7rem 0;
             margin-top: 1.5rem;
             border-radius: 0.5rem;
             font-weight: 600;
@@ -68,121 +77,251 @@
             background-color: #4f46e5;
             transition: background-color 0.3s;
             text-decoration: none;
+            font-size: 1.07rem;
         }
-
-        .tool-card-button:hover {
+        .tool-card-button i {
+            margin-right: .5em;
+        }
+        .tool-card-button:hover, .tool-card-button:focus {
             background-color: #4338ca;
         }
-
         .coming-soon-badge {
             position: absolute;
-            top: 10px;
-            right: 10px;
+            top: 10px; right: 10px;
             background-color: #fbbf24;
             color: #92400e;
             padding: 0.25rem 0.75rem;
             border-radius: 9999px;
             font-size: 0.875rem;
             font-weight: 600;
+            letter-spacing: .5px;
+            z-index: 2;
         }
-
-        .disabled-card {
+        .disabled-card,
+        .tool-card[aria-disabled="true"] {
             opacity: 0.7;
             filter: grayscale(30%);
+            pointer-events: none;
         }
-
-        .disabled-card:hover {
-            transform: none;
-            border-color: #4b5563;
-            box-shadow: none;
+        .disabled-button,
+        .tool-card-button[aria-disabled="true"] {
+            background-color: #6b7280 !important;
+            color: #d1d5db !important;
+            cursor: not-allowed !important;
         }
-        
-        .disabled-button {
-            background-color: #6b7280;
-            color: #d1d5db;
-            cursor: not-allowed;
+        /* 登入表單樣式 */
+        .login-bg {
+            min-height:100vh;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            background:#1f2937;
         }
-        .disabled-button:hover {
-            background-color: #6b7280;
+        .login-form {
+            background:#374151;
+            padding:2.5rem 2.5rem 2rem 2.5rem;
+            border-radius:1rem;
+            box-shadow:0 2px 16px #0003;
+            width:320px;
+            max-width:92vw;
+        }
+        .login-form h2 {
+            color:#fff;
+            margin-bottom:1rem;
+            text-align:center;
+        }
+        .login-form input {
+            display:block;
+            width:100%;
+            margin-bottom:1rem;
+            padding:.6em;
+            border-radius:.5em;
+            border:1px solid #4b5563;
+            background:#232b38;
+            color:#f3f4f6;
+            font-size:1rem;
+        }
+        .login-form button {
+            width:100%;
+            padding:.7em;
+            background:#4f46e5;
+            color:#fff;
+            font-weight:bold;
+            border:none;
+            border-radius:.5em;
+            font-size:1.07rem;
+            margin-top:.5em;
+            transition:background .2s;
+        }
+        .login-form button:hover,
+        .login-form button:focus {
+            background:#4338ca;
+        }
+        .login-form .error {
+            color:#f87171;
+            margin-top:.5em;
+            min-height:1.5em;
+            text-align:center;
+        }
+        .logout-btn {
+            position:fixed;
+            top:18px; right:24px;
+            z-index:2;
+            background:#374151;
+            color:#fbbf24;
+            border:none;
+            font-weight:600;
+            padding:.5em 1.2em;
+            border-radius:999px;
+            box-shadow:0 2px 8px #0002;
+            cursor:pointer;
+            transition:background .2s;
+        }
+        .logout-btn:hover { background:#4b5563;}
+        @media (max-width: 640px) {
+            .tool-card-content { padding: 1rem; }
+            .tool-card-title { font-size: 1.1rem; }
+            .logout-btn { top:14px; right:10px; padding:.35em .8em;}
         }
     </style>
 </head>
-<body class="p-4 md:p-8">
+<body>
+<script>
+  // 帳號密碼清單，可自行修改
+  const USERS = [
+    { username: "1234", password: "1234" },
+    { username: "test",  password: "abc123" }
+  ];
 
-    <div class="max-w-6xl mx-auto">
-        <header class="text-center mb-12">
-            <h1 class="text-4xl md:text-5xl font-extrabold text-white">線上工具箱</h1>
-            <p class="text-gray-400 mt-3 text-lg">一個集合多種實用工具的網站，讓您的工作更有效率。</p>
-        </header>
+  // 是否已登入
+  function isAuthed() {
+    return localStorage.getItem('meow7cat_auth') === '1';
+  }
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+  // 登出
+  function doLogout() {
+    localStorage.removeItem('meow7cat_auth');
+    location.reload();
+  }
 
-            <!-- 工具 1: PDF 工具 -->
-            <div class="tool-card">
-                <div class="tool-card-content">
-                    <i class="fas fa-file-pdf tool-card-icon text-red-500"></i>
-                    <h3 class="tool-card-title">PDF TOOLS</h3>
-                    <p class="tool-card-description">提供 PDF 分割、合併、加上頁碼等基礎功能。</p>
-                    <a href="PDFTOOLS.html" class="tool-card-button mt-auto" target="_blank" rel="noopener noreferrer">前往使用</a>
-                </div>
-            </div>
+  // 登入表單
+  function showLoginForm() {
+    document.body.innerHTML = `
+      <div class="login-bg">
+        <form class="login-form" id="loginForm" autocomplete="off">
+          <h2><i class="fa-solid fa-user-lock"></i> 工具箱登入</h2>
+          <input type="text" id="username" placeholder="帳號" autocomplete="username" required autofocus>
+          <input type="password" id="password" placeholder="密碼" autocomplete="current-password" required>
+          <button type="submit">登入</button>
+          <div class="error" id="loginError"></div>
+        </form>
+      </div>
+    `;
+    document.getElementById('loginForm').onsubmit = function(e) {
+      e.preventDefault();
+      const u = document.getElementById('username').value.trim();
+      const p = document.getElementById('password').value;
+      const valid = USERS.some(user => user.username === u && user.password === p);
+      if (valid) {
+        localStorage.setItem('meow7cat_auth', '1');
+        location.reload();
+      } else {
+        document.getElementById('loginError').textContent = "帳號或密碼錯誤";
+      }
+    };
+  }
 
-            <!-- 工具 2: 車軌視覺化 -->
-            <div class="tool-card">
-                <div class="tool-card-content">
-                    <i class="fas fa-car-side tool-card-icon text-blue-500"></i>
-                    <h3 class="tool-card-title">車軌視覺化</h3>
-                    <p class="tool-card-description">結合路線規劃與 AI 分析，不僅呈現軌跡，更能洞察先機。</p>
-                    <a href="carmap.html" class="tool-card-button mt-auto" target="_blank" rel="noopener noreferrer">前往使用</a>
-                </div>
-            </div>
+  // 檢查登入狀態
+  if (!isAuthed()) {
+    showLoginForm();
+    throw new Error("未登入不顯示內容");
+  }
+</script>
 
-            <!-- 工具 3: QR Code 產生器 (未來開發) -->
-            <div class="tool-card disabled-card">
-                <div class="coming-soon-badge">敬請期待</div>
-                <div class="tool-card-content">
-                    <i class="fas fa-qrcode tool-card-icon text-green-500"></i>
-                    <h3 class="tool-card-title">QR Code 產生器</h3>
-                    <p class="tool-card-description">輸入網址或文字，立即產生可自訂樣式的 QR Code 圖片。</p>
-                    <a href="#" class="tool-card-button disabled-button mt-auto">開發中</a>
-                </div>
-            </div>
-            
-            <!-- 工具 4: 密碼產生器 (未來開發) -->
-            <div class="tool-card disabled-card">
-                <div class="coming-soon-badge">敬請期待</div>
-                <div class="tool-card-content">
-                    <i class="fas fa-key tool-card-icon text-yellow-500"></i>
-                    <h3 class="tool-card-title">安全密碼產生器</h3>
-                    <p class="tool-card-description">產生高強度隨機密碼，並可自訂長度與包含的字元類型。</p>
-                    <a href="#" class="tool-card-button disabled-button mt-auto">開發中</a>
-                </div>
-            </div>
+<!-- 登出按鈕 -->
+<button class="logout-btn" onclick="doLogout()"><i class="fa-solid fa-arrow-right-from-bracket"></i> 登出</button>
 
-            <!-- 工具 5: JSON 格式化工具 (未來開發) -->
-            <div class="tool-card disabled-card">
-                <div class="coming-soon-badge">敬請期待</div>
-                <div class="tool-card-content">
-                    <i class="fas fa-code tool-card-icon text-indigo-500"></i>
-                    <h3 class="tool-card-title">JSON 格式化工具</h3>
-                    <p class="tool-card-description">貼上雜亂的 JSON 資料，一鍵美化、驗證與排版，方便閱讀與除錯。</p>
-                    <a href="#" class="tool-card-button disabled-button mt-auto">開發中</a>
-                </div>
-            </div>
-
-            <!-- 工具 6: 色彩選擇器 (未來開發) -->
-            <div class="tool-card disabled-card">
-                <div class="coming-soon-badge">敬請期待</div>
-                <div class="tool-card-content">
-                    <i class="fas fa-palette tool-card-icon text-pink-500"></i>
-                    <h3 class="tool-card-title">進階色彩選擇器</h3>
-                    <p class="tool-card-description">從圖片擷取顏色，或在調色盤上選色，並轉換為 HEX、RGB、HSL 等格式。</p>
-                    <a href="#" class="tool-card-button disabled-button mt-auto">開發中</a>
-                </div>
-            </div>
-
+<main>
+    <header class="text-center mb-12">
+        <h1 class="text-4xl md:text-5xl font-extrabold text-white">線上工具箱</h1>
+        <p class="text-gray-400 mt-3 text-lg">一個集合多種實用工具的網站，讓您的工作更有效率。</p>
+    </header>
+    <section aria-label="工具列表">
+        <div id="tools-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"></div>
+    </section>
+</main>
+<script>
+const tools = [
+    {
+        title: "PDF TOOLS",
+        desc: "提供 PDF 分割、合併、加上頁碼等基礎功能。",
+        icon: "fas fa-file-pdf text-red-500",
+        link: "PDFTOOLS.html",
+        available: true,
+        btnIcon: "fa-solid fa-arrow-up-right-from-square",
+    },
+    {
+        title: "車軌視覺化",
+        desc: "結合路線規劃與 AI 分析，不僅呈現軌跡，更能洞察先機。",
+        icon: "fas fa-car-side text-blue-500",
+        link: "carmap.html",
+        available: true,
+        btnIcon: "fa-solid fa-arrow-up-right-from-square",
+    },
+    {
+        title: "QR Code 產生器",
+        desc: "輸入網址或文字，立即產生可自訂樣式的 QR Code 圖片。",
+        icon: "fas fa-qrcode text-green-500",
+        link: "#",
+        available: false,
+        btnIcon: "fa-solid fa-ban",
+    },
+    {
+        title: "安全密碼產生器",
+        desc: "產生高強度隨機密碼，並可自訂長度與包含的字元類型。",
+        icon: "fas fa-key text-yellow-500",
+        link: "#",
+        available: false,
+        btnIcon: "fa-solid fa-ban",
+    },
+    {
+        title: "JSON 格式化工具",
+        desc: "貼上雜亂的 JSON 資料，一鍵美化、驗證與排版，方便閱讀與除錯。",
+        icon: "fas fa-code text-indigo-500",
+        link: "#",
+        available: false,
+        btnIcon: "fa-solid fa-ban",
+    },
+    {
+        title: "進階色彩選擇器",
+        desc: "從圖片擷取顏色，或在調色盤上選色，並轉換為 HEX、RGB、HSL 等格式。",
+        icon: "fas fa-palette text-pink-500",
+        link: "#",
+        available: false,
+        btnIcon: "fa-solid fa-ban",
+    },
+];
+const container = document.getElementById('tools-container');
+let cardsHTML = '';
+tools.forEach(tool => {
+    cardsHTML += `
+    <article class="tool-card${!tool.available ? ' disabled-card' : ''}"${!tool.available ? ' aria-disabled="true"' : ''}>
+        ${!tool.available ? '<div class="coming-soon-badge" aria-label="敬請期待">敬請期待</div>' : ''}
+        <div class="tool-card-content">
+            <i class="${tool.icon} tool-card-icon" aria-hidden="true"></i>
+            <h3 class="tool-card-title">${tool.title}</h3>
+            <p class="tool-card-description">${tool.desc}</p>
+            <a 
+                href="${tool.available ? tool.link : '#'}"
+                class="tool-card-button mt-auto${!tool.available ? ' disabled-button' : ''}"
+                ${tool.available ? 'target="_blank" rel="noopener noreferrer"' : 'tabindex="-1" aria-disabled="true"'}
+            >
+                <i class="${tool.btnIcon}" aria-hidden="true"></i>${tool.available ? '前往使用' : '開發中'}
+            </a>
         </div>
-    </div>
-
+    </article>`;
+});
+container.innerHTML = cardsHTML;
+</script>
 </body>
 </html>
