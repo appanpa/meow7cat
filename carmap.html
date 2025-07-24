@@ -17,144 +17,118 @@
 <style>
 html,body {height:100%;margin:0;font-family: 'Inter', 'Noto Sans TC', sans-serif;background:#1f2937;color:#f9fafb;}
 #map {position:absolute;top:0;left:0;right:0;bottom:0;z-index:0;width:100vw;height:100vh;}
-.sidebar {position:fixed;left:0;top:0;bottom:0;width:320px;background:#232b38;border-right:1px solid #4b5563;z-index:100;transition:transform 0.3s,width 0.3s;box-shadow:2px 0 28px #0002;display:flex;flex-direction:column;}
-.sidebar.collapsed {width:60px;}
-.sidebar-toggle {background:#374151;color:#fbbf24;border:none;border-radius:0 1.2em 1.2em 0;font-size:1.5rem;padding:.3em .6em;position:absolute;top:22px;right:-2.2em;box-shadow:0 2px 10px #0002;cursor:pointer;z-index:101;transition:background .2s;}
+.sidebar {position:fixed;left:0;top:0;bottom:0;width:340px;background:#232b38;border-right:1px solid #4b5563;z-index:100;transition:transform 0.3s;box-shadow:2px 0 28px #0002;display:flex;flex-direction:column;}
+.sidebar.collapsed {transform: translateX(-100%);}
+.sidebar-toggle {
+    position: fixed;
+    left: 20px;
+    top: 80px;
+    z-index: 101;
+    background: #374151;
+    color: #fbbf24;
+    border: none;
+    border-radius: .5em;
+    font-size: 1.5rem;
+    padding: .3em .6em;
+    box-shadow: 0 2px 10px #0002;
+    cursor: pointer;
+    transition: all .3s ease-in-out;
+}
 .sidebar-toggle:hover {background:#4b5563;}
-.sidebar-content {padding:2.2em 1.2em 1.2em 1.2em;overflow-y:auto;height:100%;transition:opacity 0.3s;}
-.sidebar.collapsed .sidebar-content {opacity:0;pointer-events:none;}
-.sidebar-header {font-size:1.6em;font-weight:900;color:#fff;text-align:left;margin-bottom:1.2em;letter-spacing:1px;}
-.sidebar section {margin-bottom:1.2em;}
-.sidebar section h3 {font-size:1.1rem;font-weight:700;margin-bottom:.5em;color:#f3f4f6;}
-.sidebar input[type="file"], .sidebar select, .sidebar input[type="button"], .sidebar button {width:100%;background:#374151;color:#fff;border:none;border-radius:.5em;padding:.55em 1em;margin-bottom:.5em;font-size:1em;cursor:pointer;transition:background .2s;text-align:left;}
+.sidebar-content {padding:1.5em;overflow-y:auto;height:100%;}
+.sidebar-header {display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5em;}
+.sidebar-header h2 {font-size:1.8em;font-weight:900;color:#fff;letter-spacing:1px;}
+.sidebar section {margin-bottom:1.5em;}
+.sidebar section h3 {font-size:1.2rem;font-weight:700;margin-bottom:.8em;color:#f3f4f6;}
+.sidebar input[type="file"], .sidebar select, .sidebar input[type="button"], .sidebar button {width:100%;background:#374151;color:#fff;border:none;border-radius:.5em;padding:.65em 1em;margin-bottom:.5em;font-size:1em;cursor:pointer;transition:background .2s;text-align:left;}
 .sidebar input[type="file"]:hover, .sidebar input[type="button"]:hover, .sidebar button:hover, .sidebar select:hover {background:#4b5563;}
 .sidebar button:disabled { background: #4b5563; cursor: not-allowed; }
+/* Custom file input */
+.file-input-wrapper { background-color: #374151; border-radius: .5em; padding: .65em 1em; display: flex; align-items: center; cursor: pointer; }
+.file-input-wrapper:hover { background-color: #4b5563; }
+.file-input-wrapper .file-name { margin-left: .5rem; color: #d1d5db; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 @media (max-width:800px){.sidebar{width:84vw;}}
 /* Marker Styles */
-.number-marker, .icon-marker {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    color: white;
-    font-weight: bold;
-    font-size: 12px;
-    border: 2px solid white;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.5);
-}
+.number-marker, .icon-marker { display: flex; justify-content: center; align-items: center; width: 28px; height: 28px; border-radius: 50%; color: white; font-weight: bold; font-size: 12px; border: 2px solid white; box-shadow: 0 1px 4px rgba(0,0,0,0.5); }
 .icon-marker { font-size: 14px; }
 /* Modal Styles */
 .modal {position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:200;display:flex;align-items:center;justify-content:center;opacity:1;transition:opacity .3s;}
 .modal.hide {opacity:0;pointer-events:none;}
 .modal-content {background:#374151;padding:2em;border-radius:1em;width:80%;max-width:600px;max-height:80vh;overflow-y:auto;position:relative;box-shadow:0 10px 30px #0005;}
-.modal-close {position:absolute;top:1em;right:1em;background:transparent;border:none;color:#9ca3af;font-size:1.5rem;cursor:pointer;}
+.modal-close {position:absolute;top:1em;right:1em;background:transparent;border:none;color:#9ca3af;font-size:1.5rem;cursor:pointer; width: auto !important;}
 .modal-close:hover {color:#fff;}
 /* AI Modal Styles */
-.modal-content input, .modal-content textarea, .modal-content button {
-    width: 100%; background: #232b38; color: #fff; border: 1px solid #4b5563; border-radius: .5em;
-    padding: .55em 1em; margin-bottom: .5em; font-size: 1em; transition: background .2s;
-}
+.modal-content .input-group { position: relative; }
+.modal-content .input-group input { padding-right: 3rem; }
+.modal-content .input-group button { position: absolute; right: 0.5rem; top: 0.5rem; width: auto; padding: 0.25rem 0.5rem; }
+.modal-content input, .modal-content textarea, .modal-content button { width: 100%; background: #232b38; color: #fff; border: 1px solid #4b5563; border-radius: .5em; padding: .55em 1em; margin-bottom: .5em; font-size: 1em; transition: background .2s; }
 .modal-content button { cursor: pointer; }
 .modal-content button:hover { background: #4b5563; }
 .loader { border: 4px solid rgba(249, 250, 251, 0.2); border-top: 4px solid #f9fafb; border-radius: 50%; width: 1.5rem; height: 1.5rem; animation: spin 1s linear infinite; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 /* Floating Panel Styles */
-.floating-panel {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    z-index: 100;
-    width: 300px;
-    background: #232b38e0;
-    backdrop-filter: blur(5px);
-    border-radius: .7em;
-    box-shadow: 0 2px 10px #0005;
-    transition: all .3s;
-}
-.floating-panel.collapsed .panel-content {
-    max-height: 0;
-    padding-top: 0;
-    padding-bottom: 0;
-    opacity: 0;
-}
-.panel-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: .8em 1em;
-    cursor: pointer;
-    border-bottom: 1px solid #4b5563;
-}
-.panel-header h3 {
-    font-size: 1.1rem;
-    font-weight: 700;
-    margin: 0;
-    color: #f3f4f6;
-}
-.panel-toggle-btn {
-    background: none;
-    border: none;
-    color: #9ca3af;
-    cursor: pointer;
-    transition: transform .3s;
-}
-.floating-panel.collapsed .panel-toggle-btn {
-    transform: rotate(-180deg);
-}
-.panel-content {
-    padding: 1em;
-    max-height: 300px;
-    overflow-y: auto;
-    transition: all .3s;
-}
+.floating-panel { position: absolute; top: 20px; right: 20px; z-index: 100; width: 320px; background: #232b38e8; backdrop-filter: blur(8px); border-radius: .7em; box-shadow: 0 2px 10px #0005; transition: all .3s; }
+.floating-panel.collapsed .panel-content { max-height: 0; padding-top: 0; padding-bottom: 0; opacity: 0; }
+.panel-header { display: flex; justify-content: space-between; align-items: center; padding: .8em 1.2em; cursor: pointer; border-bottom: 1px solid #4b5563; }
+.panel-header h3 { font-size: 1.1rem; font-weight: 700; margin: 0; color: #f3f4f6; }
+.panel-toggle-btn { background: none; border: none; color: #9ca3af; cursor: pointer; transition: transform .3s; }
+.floating-panel.collapsed .panel-toggle-btn { transform: rotate(-180deg); }
+.panel-content { padding: 1.2em; max-height: 250px; overflow-y: auto; transition: all .3s; }
 .dashboard-list { max-height: 120px; overflow-y: auto; font-size: 0.9em; }
 .dashboard-list-item { padding: 0.25rem 0.5rem; border-radius: 0.25rem; }
 .dashboard-list-item:hover { background-color: #4b5563; }
 .clickable-coord { color: #60a5fa; cursor: pointer; text-decoration: underline; }
-.track-date-list .date-item {display:flex;align-items:center;margin-bottom:.3em;}
+.track-date-list .date-item {display:flex;align-items:center;margin-bottom:.5em;}
 </style>
 </head>
 <body>
 <div id="map"></div>
 
-<!-- 側邊選單 -->
-<aside id="sidebar" class="sidebar">
-    <button class="sidebar-toggle" id="sidebarToggle" title="收合選單"><i class="fa fa-bars"></i></button>
+<!-- Sidebar Toggle Button on Map -->
+<button class="sidebar-toggle" id="sidebarToggle" title="開啟選單"><i class="fa fa-bars"></i></button>
+
+<!-- Sidebar -->
+<aside id="sidebar" class="sidebar collapsed">
     <div class="sidebar-content">
-        <div class="sidebar-header">車軌地圖工具</div>
+        <div class="sidebar-header">
+            <h2>車軌地圖工具</h2>
+        </div>
         <section>
             <h3>步驟一：檔案上傳</h3>
-            <input type="file" id="fileUpload" accept=".gpx,.csv,.xlsx,.xls,.json">
-            <div id="uploadStatus" style="color:#fbbf24;font-size:.95em;"></div>
-            <div id="fieldSelector"></div>
+            <label for="fileUpload" class="file-input-wrapper">
+                <i class="fa fa-folder-open"></i>
+                <span class="file-name">選擇檔案</span>
+            </label>
+            <input type="file" id="fileUpload" accept=".gpx,.csv,.xlsx,.xls,.json" class="hidden">
+            <div id="uploadStatus" style="color:#fbbf24;font-size:.95em; margin-top: 0.5rem;"></div>
+            <div id="fieldSelector" class="mt-4 space-y-2"></div>
         </section>
-        <hr class="my-3 border-gray-700">
-        <div id="actionsPanel" style="display:none;">
-            <button id="btnDownloadMap"><i class="fa fa-camera"></i> 下載軌跡圖檔</button>
-            <button id="btnGoogleRoute"><i class="fa fa-location-arrow"></i> 預測行車路線</button>
-            <hr class="my-3 border-gray-700">
-            <button id="btnAiAnalysis"><i class="fa fa-brain"></i> 軌跡智慧分析</button>
+        <hr class="my-4 border-gray-700">
+        <div id="actionsPanel" class="space-y-2" style="display:none;">
+            <button id="btnDownloadMap"><i class="fa fa-camera w-5"></i> 下載軌跡圖檔</button>
+            <button id="btnGoogleRoute"><i class="fa fa-location-arrow w-5"></i> 預測行車路線</button>
+            <hr class="my-2 border-gray-700">
+            <button id="btnAiAnalysis"><i class="fa fa-brain w-5"></i> 軌跡智慧分析</button>
         </div>
     </div>
 </aside>
 
-<!-- 右側懸浮視窗 -->
+<!-- Floating Panels -->
 <div id="layerControlPanel" class="floating-panel hidden">
     <div class="panel-header">
-        <h3><i class="fa fa-layer-group"></i> 軌跡圖層控制</h3>
+        <h3><i class="fa fa-layer-group mr-2"></i>軌跡圖層控制</h3>
         <button class="panel-toggle-btn"><i class="fa fa-chevron-up"></i></button>
     </div>
     <div class="panel-content">
-        <button id="toggleAllTracksBtn" style="width:100%;background:#374151;color:#fff;border:none;border-radius:.5em;padding:.55em 1em;margin-bottom:.5em;font-size:1em;cursor:pointer;">顯示/隱藏所有</button>
+        <button id="toggleAllTracksBtn" style="width:100%;background:#374151;color:#fff;border:none;border-radius:.5em;padding:.55em 1em;margin-bottom:1em;font-size:1em;cursor:pointer;">顯示/隱藏所有</button>
         <div class="track-date-list"></div>
     </div>
 </div>
 
-<div id="dashboardPanel" class="floating-panel hidden" style="top: 220px;">
+<div id="dashboardPanel" class="floating-panel hidden" style="top: 240px;">
      <div class="panel-header">
-        <h3><i class="fa fa-tachometer-alt"></i> 偵查儀表板</h3>
+        <h3><i class="fa fa-tachometer-alt mr-2"></i>偵查儀表板</h3>
         <button class="panel-toggle-btn"><i class="fa fa-chevron-up"></i></button>
     </div>
     <div class="panel-content">
@@ -165,15 +139,15 @@ html,body {height:100%;margin:0;font-family: 'Inter', 'Noto Sans TC', sans-serif
 </div>
 
 
-<!-- AI分析彈窗 Modal -->
+<!-- AI Analysis Modal -->
 <div id="modal" class="modal hide">
     <div class="modal-content" id="modal-content">
-        <button class="modal-close" onclick="hideModal()"><i class="fa fa-times"></i></button>
+        <!-- Content will be injected by JavaScript -->
     </div>
 </div>
 
 <script>
-// --- 全域變數 ---
+// --- Global Variables ---
 const map = L.map('map').setView([23.8, 121], 7.5);
 let parsedData = [];
 let allHeaders = [];
@@ -184,8 +158,9 @@ let processedPointsForAI = [];
 let hotzoneCircle = null;
 const trackColorSet = ['#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'];
 
-// --- DOM 元素 ---
+// --- DOM Elements ---
 const sidebar = document.getElementById('sidebar');
+const sidebarToggle = document.getElementById('sidebarToggle');
 const fileInput = document.getElementById('fileUpload');
 const statusDiv = document.getElementById('uploadStatus');
 const fieldSelectorDiv = document.getElementById('fieldSelector');
@@ -195,27 +170,34 @@ const dashboardPanel = document.getElementById('dashboardPanel');
 const hotZoneDisplay = document.getElementById('hot-zone-display');
 const dailyStartDisplay = document.getElementById('daily-start-display');
 const dailyEndDisplay = document.getElementById('daily-end-display');
+const fileNameSpan = document.querySelector('.file-name');
 
 
-// --- 初始化 ---
+// --- Initialization ---
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors',
     maxZoom: 19
 }).addTo(map);
 
-document.getElementById('sidebarToggle').onclick = (e) => {
+// --- Event Listeners ---
+sidebarToggle.onclick = (e) => {
     sidebar.classList.toggle('collapsed');
+    if (sidebar.classList.contains('collapsed')) {
+        sidebarToggle.style.left = '20px';
+        sidebarToggle.title = '開啟選單';
+    } else {
+        sidebarToggle.style.left = '360px'; // 340px sidebar width + 20px margin
+        sidebarToggle.title = '收合選單';
+    }
     e.stopPropagation();
 };
 
-// --- 事件監聽 ---
 fileInput.addEventListener('change', handleFile);
 document.getElementById('btnDownloadMap').addEventListener('click', downloadMapImage);
 document.getElementById('btnGoogleRoute').addEventListener('click', openGoogleMapsRoute);
 document.getElementById('btnAiAnalysis').addEventListener('click', () => showModal('analysis'));
 document.getElementById('toggleAllTracksBtn').addEventListener('click', () => toggleAllTracks());
 
-// Floating Panel Collapse Logic
 document.querySelectorAll('.panel-header').forEach(header => {
     header.addEventListener('click', () => {
         header.parentElement.classList.toggle('collapsed');
@@ -223,13 +205,14 @@ document.querySelectorAll('.panel-header').forEach(header => {
 });
 
 
-// --- 核心功能 ---
+// --- Core Functions ---
 
 function handleFile(event) {
     const file = event.target.files[0];
     if (!file) return;
+    fileNameSpan.textContent = file.name;
     resetUI();
-    statusDiv.textContent = '檔案上傳中...';
+    statusDiv.innerHTML = '<div class="loader mx-auto" style="width: 1rem; height: 1rem; display: inline-block; margin-right: 0.5rem;"></div><span>正在解析檔案...</span>';
     
     const reader = new FileReader();
     const ext = file.name.split('.').pop().toLowerCase();
@@ -300,19 +283,22 @@ function populateColumnSelectors() {
     let latIdx = allHeaders.findIndex(h => /lat|latitude|y|緯度/i.test(h));
     let lngIdx = allHeaders.findIndex(h => /lng|lon|longitude|x|經度/i.test(h));
     
-    const createSelect = (id, selectedIndex) => 
-        `<select id="${id}">${allHeaders.map((h, i) => `<option value="${h}" ${i === selectedIndex ? 'selected' : ''}>${h}</option>`).join('')}</select>`;
+    const createSelect = (id, label, selectedIndex) => 
+        `<div>
+            <label for="${id}" class="block mb-1 text-sm font-medium text-gray-300">${label}</label>
+            <select id="${id}">${allHeaders.map((h, i) => `<option value="${h}" ${i === selectedIndex ? 'selected' : ''}>${h}</option>`).join('')}</select>
+         </div>`;
 
     fieldSelectorDiv.innerHTML = `
-        <label>指定「時間」欄位：</label>${createSelect('colTime', timeIdx)}
-        <label>指定「緯度」欄位：</label>${createSelect('colLat', latIdx)}
-        <label>指定「經度」欄位：</label>${createSelect('colLng', lngIdx)}
-        <button onclick="drawTracks()"><i class="fa fa-map-marked-alt"></i> 繪製軌跡</button>
+        ${createSelect('colTime', '指定「時間」欄位：', timeIdx)}
+        ${createSelect('colLat', '指定「緯度」欄位：', latIdx)}
+        ${createSelect('colLng', '指定「經度」欄位：', lngIdx)}
+        <button onclick="drawTracks()" class="mt-4"><i class="fa fa-map-marked-alt"></i> 繪製軌跡</button>
     `;
 }
 
 function drawTracks() {
-    statusDiv.textContent = '正在繪製軌跡...';
+    statusDiv.innerHTML = '<div class="loader mx-auto" style="width: 1rem; height: 1rem; display: inline-block; margin-right: 0.5rem;"></div><span>正在繪製軌跡...</span>';
     setTimeout(() => {
         try {
             const latCol = document.getElementById('colLat').value;
@@ -433,7 +419,7 @@ function toggleAllTracks() {
     updateVisibleLayers();
 }
 
-// --- 分析與工具函式 ---
+// --- Analysis and Tool Functions ---
 
 function updateDashboard() {
     let hotZoneHtml = '', dailyStartHtml = '', dailyEndHtml = '';
@@ -481,9 +467,9 @@ async function downloadMapImage() {
     btn.innerHTML = '<div class="loader" style="width:1rem;height:1rem;display:inline-block;margin-right:0.5rem;"></div>處理中';
     try {
         const mapElement = document.getElementById('map');
-        mapElement.querySelectorAll('.leaflet-control-container, .floating-panel').forEach(c => c.style.visibility = 'hidden');
+        mapElement.querySelectorAll('.leaflet-control-container, .floating-panel, .sidebar-toggle').forEach(c => c.style.visibility = 'hidden');
         const canvas = await html2canvas(mapElement, { useCORS: true, logging: false, backgroundColor: '#1f2937' });
-        mapElement.querySelectorAll('.leaflet-control-container, .floating-panel').forEach(c => c.style.visibility = 'visible');
+        mapElement.querySelectorAll('.leaflet-control-container, .floating-panel, .sidebar-toggle').forEach(c => c.style.visibility = 'visible');
         const link = document.createElement('a');
         link.download = `trajectory_map_${new Date().toISOString().slice(0,10)}.png`;
         link.href = canvas.toDataURL('image/png');
@@ -538,23 +524,42 @@ async function handleAiAnalysis() {
         const dataString = processedPointsForAI.map(p => JSON.stringify(p)).join('\n');
         const prompt = `你是一位專業的數據分析師。請根據以下 JSON 格式的軌跡數據，用繁體中文回答「使用者的問題」。\n\n【軌跡數據】:\n${dataString}\n\n【使用者的問題】:\n${userPrompt}\n\n【你的分析】:`;
         
-        let apiKey = localStorage.getItem('gemini_api_key_trajectory') || "";
+        let apiKey = localStorage.getItem('gemini_api_key_trajectory');
+        if (!apiKey) {
+            throw new Error("請先在輸入框中提供您的 Google AI API 金鑰。");
+        }
+        
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
         const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
         const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        if (!response.ok) throw new Error(`API 請求失敗 (狀態碼: ${response.status})。請檢查您的 API 金鑰權限。`);
-        const result = await response.json();
-        if (result.candidates && result.candidates.length > 0) outputArea.value = result.candidates[0].content.parts[0].text;
-        else throw new Error("從 API 收到的回應無效或為空。");
+        
+        if (!response.ok) {
+            let errorMsg = `API 請求失敗 (狀態碼: ${response.status})。`;
+            if (response.status === 403) {
+                errorMsg = `您提供的 API 金鑰權限不足 (403)。請確認該金鑰已在 Google Cloud Console 中啟用 "Generative Language API" 或 "Vertex AI API"。`;
+            } else if (response.status === 400) {
+                 errorMsg = `API 請求無效 (400)。請檢查您的 API 金鑰是否正確，或嘗試重新產生一組新的金鑰。`;
+            }
+            throw new Error(errorMsg);
+        }
 
-    } catch (err) { outputArea.value = `分析失敗: ${err.message}`; }
+        const result = await response.json();
+        if (result.candidates && result.candidates.length > 0) {
+            outputArea.value = result.candidates[0].content.parts[0].text;
+        } else {
+            throw new Error("從 API 收到的回應無效或為空。");
+        }
+
+    } catch (err) { 
+        outputArea.value = `分析失敗: ${err.message}`; 
+    }
     finally {
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalHTML;
     }
 }
 
-// --- 輔助函式 ---
+// --- Helper Functions ---
 
 function showModal(type, data) {
     const modal = document.getElementById('modal');
@@ -563,26 +568,34 @@ function showModal(type, data) {
     const closeButtonHtml = `<button class="modal-close" onclick="hideModal()"><i class="fa fa-times"></i></button>`;
 
     if (type === 'analysis') {
-        html = `<h2><i class="fa fa-brain"></i> 軌跡智慧分析</h2>
-                <p class="text-gray-400 text-sm my-3">若內建金鑰權限不足，請提供您自己的 Google AI API 金鑰。</p>
-                <div class="flex items-center gap-2 mb-3">
-                    <input type="password" id="api-key-input" placeholder="貼上您的 API 金鑰">
-                    <button id="save-api-key-btn" style="width:auto;"><i class="fa fa-save"></i></button>
-                </div>
-                <textarea id="custom-prompt-input" rows="3" placeholder="例如：請找出所有停留超過10分鐘的地點。"></textarea>
-                <button id="ai-submit-btn"><i class="fa fa-paper-plane mr-2"></i>送出分析</button>
-                <textarea id="ai-output" rows="6" placeholder="AI 分析結果將顯示於此..." readonly></textarea>`;
+        html = `
+            <div class="flex justify-between items-center">
+                <h2 class="text-xl font-bold"><i class="fa fa-brain mr-2"></i>軌跡智慧分析</h2>
+                ${closeButtonHtml}
+            </div>
+            <p class="text-gray-400 text-sm my-3">
+                此功能需要您提供個人的 Google AI API 金鑰。
+                您可以點擊<a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:underline">這裡</a>免費取得。
+            </p>
+            <div class="input-group">
+                <input type="password" id="api-key-input" placeholder="貼上您的 API 金鑰">
+                <button id="save-api-key-btn"><i class="fa fa-save"></i></button>
+            </div>
+            <textarea id="custom-prompt-input" rows="3" placeholder="例如：請找出所有停留超過10分鐘的地點。"></textarea>
+            <button id="ai-submit-btn" class="mt-4"><i class="fa fa-paper-plane mr-2"></i>送出分析</button>
+            <textarea id="ai-output" rows="8" class="mt-2" placeholder="AI 分析結果將顯示於此..." readonly></textarea>`;
     } else if (type === 'alert') {
-        html = `<h2>提示</h2><p class="my-4">${data.message}</p>`;
+        html = `<h2>提示</h2><p class="my-4">${data.message}</p>${closeButtonHtml}`;
     }
-    content.innerHTML = closeButtonHtml + html;
+    content.innerHTML = html;
+    
     modal.classList.remove('hide');
 
     if (type === 'analysis') {
         document.getElementById('save-api-key-btn').onclick = () => {
             const apiKey = document.getElementById('api-key-input').value.trim();
             localStorage.setItem('gemini_api_key_trajectory', apiKey);
-            alert(apiKey ? 'API 金鑰已儲存' : 'API 金鑰已清除');
+            showModal('alert', { message: apiKey ? 'API 金鑰已儲存' : 'API 金鑰已清除' });
         };
         const savedApiKey = localStorage.getItem('gemini_api_key_trajectory');
         if (savedApiKey) document.getElementById('api-key-input').value = savedApiKey;
