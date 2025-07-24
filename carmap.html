@@ -220,9 +220,70 @@ html,body {height:100%;margin:0;font-family: 'Inter', 'Noto Sans TC', sans-serif
         <button class="panel-toggle-btn" tabindex="-1"><i class="fa fa-chevron-up"></i></button>
     </div>
     <div class="panel-content">
-        <div><h4 class="font-semibold mb-2 text-gray-300">最常經過點位</h4><div id="hot-zone-display" class="dashboard-list"></div></div>
-        <div class="mt-4"><h4 class="font-semibold mb-2 text-gray-300">每日起始點</h4><div id="daily-start-display" class="dashboard-list"></div></div>
-        <div class="mt-4"><h4 class="font-semibold mb-2 text-gray-300">每日結束點</h4><div id="daily-end-display" class="dashboard-list"></div></div>
+        <!-- 熱區分析 -->
+        <div>
+            <h4 class="font-semibold mb-2 text-gray-300 flex items-center gap-2">
+                <i class="fa fa-fire text-orange-400"></i>最常經過點位
+                <i class="fa fa-question-circle text-xs text-gray-400" title="僅統計經過攝影機的頻率，無法顯示路段熱度。"></i>
+            </h4>
+            <div id="hot-zone-display" class="dashboard-list"></div>
+        </div>
+        <!-- 每日起始點 -->
+        <div class="mt-4">
+            <h4 class="font-semibold mb-2 text-gray-300 flex items-center gap-2">
+                <i class="fa fa-play-circle text-green-400"></i>每日起始點
+                <i class="fa fa-question-circle text-xs text-gray-400" title="僅為偵測到的第一個攝影機點位，不一定是實際出發地點。"></i>
+            </h4>
+            <div id="daily-start-display" class="dashboard-list"></div>
+        </div>
+        <!-- 每日結束點 -->
+        <div class="mt-4">
+            <h4 class="font-semibold mb-2 text-gray-300 flex items-center gap-2">
+                <i class="fa fa-stop-circle text-gray-400"></i>每日結束點
+                <i class="fa fa-question-circle text-xs text-gray-400" title="僅為偵測到的最後一個攝影機點位，不一定是實際結束地點。"></i>
+            </h4>
+            <div id="daily-end-display" class="dashboard-list"></div>
+        </div>
+        <!-- 異常停留點分析 -->
+        <div class="mt-4">
+            <h4 class="font-semibold mb-2 text-gray-300 flex items-center gap-2">
+                <i class="fa fa-clock text-yellow-400"></i>異常停留點
+                <i class="fa fa-question-circle text-xs text-gray-400" title="僅當車輛連續多次出現在同一攝影機點位且時間間隔短時，才視為停留。避免因資料稀疏誤判。"></i>
+            </h4>
+            <div id="stay-point-display" class="dashboard-list"></div>
+        </div>
+        <!-- 異常路徑/繞路偵測 -->
+        <div class="mt-4">
+            <h4 class="font-semibold mb-2 text-gray-300 flex items-center gap-2">
+                <i class="fa fa-random text-pink-400"></i>異常路徑/繞路
+                <i class="fa fa-question-circle text-xs text-gray-400" title="僅根據經過攝影機的順序，標記重複經過或異常順序。無法判斷實際路線是否繞遠。"></i>
+            </h4>
+            <div id="abnormal-path-display" class="dashboard-list"></div>
+        </div>
+        <!-- 速度異常分析 -->
+        <div class="mt-4">
+            <h4 class="font-semibold mb-2 text-gray-300 flex items-center gap-2">
+                <i class="fa fa-tachometer-alt text-blue-400"></i>速度異常
+                <i class="fa fa-question-circle text-xs text-gray-400" title="僅對相鄰點位距離不遠的資料進行平均速度分析，資料間隔過大時不計算。"></i>
+            </h4>
+            <div id="speed-abnormal-display" class="dashboard-list"></div>
+        </div>
+        <!-- 跨日/夜間活動偵測 -->
+        <div class="mt-4">
+            <h4 class="font-semibold mb-2 text-gray-300 flex items-center gap-2">
+                <i class="fa fa-moon text-indigo-400"></i>夜間活動
+                <i class="fa fa-question-circle text-xs text-gray-400" title="僅標記夜間經過的攝影機點位，無法反映完整夜間活動。"></i>
+            </h4>
+            <div id="night-activity-display" class="dashboard-list"></div>
+        </div>
+        <!-- 自訂條件篩選 -->
+        <div class="mt-4">
+            <h4 class="font-semibold mb-2 text-gray-300 flex items-center gap-2">
+                <i class="fa fa-filter text-teal-400"></i>自訂條件篩選
+                <i class="fa fa-question-circle text-xs text-gray-400" title="條件如停留時長等，受限於資料點稀疏，易有誤判。可設定最小偵測次數等進階條件。"></i>
+            </h4>
+            <div id="custom-filter-display" class="dashboard-list"></div>
+        </div>
     </div>
 </div>
 
@@ -244,7 +305,55 @@ let layersByDate = {};
 let pointsByDate = {};
 let processedPointsForAI = [];
 let hotzoneCircle = null;
-const trackColorSet = ['#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'];
+
+/*
+偵查儀表板功能檢視與建議：
+
+1. 熱區分析（最常經過點位）
+   - 現況：以空間聚類（如50公尺）找出經過次數最多的點。
+   - 實務：對於固定點位（如車牌辨識攝影機），此功能可快速找出高頻經過點，適合偵查「常出沒地」。
+   - 建議：如有點位名稱（如攝影機ID/地名），可顯示名稱而非僅經緯度，利於判讀。
+
+2. 每日「起始點」與「結束點」
+   - 現況：僅顯示每日第一、最後一筆資料的點位。
+   - 實務：這些點僅代表「偵測到的第一/最後一個攝影機」，不一定是實際出發/結束地點。
+   - 建議：可標註「僅為偵測點」，並可比對多日資料找異常（如某日起訖點異常）。
+
+3. 異常停留點分析
+   - 現況：以「連續多次出現在同一點」且間隔短視為停留。
+   - 實務：此法可排除資料稀疏誤判，但若車輛在兩點間停留則無法偵測。
+   - 建議：可顯示「最小偵測次數」與「最大間隔」參數，並提醒僅能偵測在攝影機點位的停留。
+
+4. 異常路徑/繞路偵測
+   - 現況：標記重複經過同一點或折返（如A→B→A→C）。
+   - 實務：此法可偵測「折返」或「重複經過」異常，但無法判斷是否真的繞遠路（需路網資料）。
+   - 建議：如有路網，可進一步比對最短路徑與實際順序。
+
+5. 速度異常分析
+   - 現況：僅對相鄰點位距離不遠的資料計算平均速度，標記過快或資料間隔過大。
+   - 實務：此法可初步偵測異常，但若資料間隔大，速度無意義。
+   - 建議：可顯示「資料間隔過大」的點，並提醒僅供參考。
+
+6. 夜間活動偵測
+   - 現況：標記夜間（如0~6點）經過的點位。
+   - 實務：可協助偵查夜間活動，但僅能反映經過攝影機的時間。
+   - 建議：可讓用戶自訂夜間時段。
+
+7. 自訂條件篩選
+   - 現況：顯示資料密度、進階條件說明。
+   - 實務：有助於偵查人員判斷資料可信度。
+   - 建議：可加入「最小停留時長」、「最小偵測次數」等參數調整介面。
+
+8. 路徑重疊熱力圖
+   - 現況：僅以點位聚合顯示，無法顯示路段熱度。
+   - 實務：若有路網資料，可進一步推估路段熱度。
+
+總結：
+- 現有功能已能初步協助偵查「常出沒地」、「異常停留」、「異常路徑」、「夜間活動」等。
+- 但所有分析僅限於「偵測點」本身，無法推論點與點之間的行為。
+- 若能結合「攝影機點位名稱」、「路網資料」、「用戶自訂參數」，將更貼近實務偵查需求。
+- 建議於 UI 上明確標註分析限制，並提供參數調整（如停留次數、間隔、夜間時段等）。
+*/
 
 // --- DOM Elements ---
 const sidebar = document.getElementById('sidebar');
@@ -427,7 +536,8 @@ function drawTracks() {
             const dates = Object.keys(pointsByDate).sort();
             dates.forEach((date, dateIndex) => {
                 const dailyPoints = pointsByDate[date];
-                const color = trackColorSet[dateIndex % trackColorSet.length];
+                // 使用自動產生的顏色
+                const color = getTrackColor(dateIndex, dates.length);
                 layersByDate[date] = L.featureGroup();
 
                 const latLngs = dailyPoints.map(p => [p.lat, p.lon]);
@@ -439,9 +549,16 @@ function drawTracks() {
                 });
                 layersByDate[date].addLayer(decorator);
 
+                // --- 新增: 處理重疊 marker 的偏移 ---
+                // 用來記錄已出現過的經緯度（四捨五入到小數第5位）
+                const markerPosMap = {};
+                const OFFSET_M = 10; // 每個重疊點的偏移半徑（公尺）
+                const degPerMeter = 0.000009; // 約略值，1公尺約0.000009度
+
                 dailyPoints.forEach((p, index) => {
                     let markerHtml, markerClass, markerColor = color; 
 
+                    // 決定 marker 樣式
                     if (index === 0) {
                         markerClass = 'icon-marker';
                         markerColor = '#f59e0b'; // Yellow for start
@@ -455,7 +572,24 @@ function drawTracks() {
                         markerHtml = `<div class="${markerClass}" style="background-color: ${color};">${index + 1}</div>`;
                     }
 
-                    const marker = L.marker([p.lat, p.lon], {
+                    // --- 處理重疊: 計算偏移 ---
+                    // 以小數第5位為 key
+                    const key = `${p.lat.toFixed(5)},${p.lon.toFixed(5)}`;
+                    if (!markerPosMap[key]) markerPosMap[key] = [];
+                    const overlapCount = markerPosMap[key].length;
+                    markerPosMap[key].push(index);
+
+                    let lat = p.lat, lon = p.lon;
+                    if (overlapCount > 0) {
+                        // 以圓形均勻分布偏移
+                        const angle = (2 * Math.PI / 8) * overlapCount; // 最多8個重疊點均分圓周
+                        const offsetLat = Math.cos(angle) * OFFSET_M * degPerMeter;
+                        const offsetLon = Math.sin(angle) * OFFSET_M * degPerMeter / Math.cos(lat * Math.PI / 180);
+                        lat += offsetLat;
+                        lon += offsetLon;
+                    }
+
+                    const marker = L.marker([lat, lon], {
                         icon: L.divIcon({ 
                             className: '', html: markerHtml, 
                             iconSize: [28, 28], iconAnchor: [14, 14] 
@@ -473,14 +607,21 @@ function drawTracks() {
             statusDiv.textContent = `成功繪製 ${dates.length} 天的軌跡！`;
             actionsPanel.style.display = 'block';
 
-            // --- 自動展開並避免重疊 ---
+            // --- 自動展開並避免重疊，並加長面板高度 ---
+            // 設定兩面板不重疊，並加長高度
             layerControlPanel.classList.remove('hidden', 'collapsed');
             dashboardPanel.classList.remove('hidden', 'collapsed');
-            // 設定兩面板不重疊
+
+            // 設定面板高度
             layerControlPanel.style.top = '20px';
             layerControlPanel.style.right = '20px';
-            dashboardPanel.style.top = (layerControlPanel.offsetTop + layerControlPanel.offsetHeight + 20) + 'px';
+            layerControlPanel.style.height = '230px'; // 增加高度
+            layerControlPanel.querySelector('.panel-content').style.maxHeight = '260px';
+
+            dashboardPanel.style.top = (layerControlPanel.offsetTop + layerControlPanel.offsetHeight + 24) + 'px';
             dashboardPanel.style.right = '20px';
+            dashboardPanel.style.height = '420px'; // 增加高度
+            dashboardPanel.querySelector('.panel-content').style.maxHeight = '360px';
 
         } catch (err) { statusDiv.textContent = `繪製失敗: ${err.message}`; }
     }, 50);
@@ -491,9 +632,11 @@ function updateTrackPanel() {
     const dates = Object.keys(pointsByDate).sort();
     let html = '';
     dates.forEach((date, idx) => {
+        // 使用自動產生的顏色
+        const color = getTrackColor(idx, dates.length);
         html += `<div class="date-item">
             <input type="checkbox" id="chkTrack${idx}" checked onchange="updateVisibleLayers()">
-            <label for="chkTrack${idx}" style="color:${trackColorSet[idx % trackColorSet.length]}; margin-left: 0.5rem;">${date}</label>
+            <label for="chkTrack${idx}" style="color:${color}; margin-left: 0.5rem;">${date}</label>
         </div>`;
     });
     trackList.innerHTML = html;
@@ -528,36 +671,220 @@ function toggleAllTracks() {
 
 // --- Analysis and Tool Functions ---
 
+function getPointName(point) {
+    // 優先顯示攝影機ID/地名欄位，否則顯示經緯度
+    const nameKeys = ['camera_id', '攝影機ID', '地點', '地名', 'name', 'station', '點位'];
+    for (const k of nameKeys) {
+        if (point[k]) return point[k];
+    }
+    return `${point.lat.toFixed(6)}, ${point.lon.toFixed(6)}`;
+}
+
 function updateDashboard() {
     let hotZoneHtml = '', dailyStartHtml = '', dailyEndHtml = '';
+    let stayPointHtml = '', abnormalPathHtml = '', speedAbnormalHtml = '', nightActivityHtml = '', customFilterHtml = '';
     const CLUSTER_RADIUS_METERS = 50;
+    const STAY_MIN_COUNT = 2; // 最小連續偵測次數
+    const STAY_MAX_INTERVAL_MIN = 20; // 連續出現最大間隔(分鐘)
+    const SPEED_MAX_INTERVAL_MIN = 30; // 速度分析最大間隔(分鐘)
+    const SPEED_NEARBY_METERS = 2000; // 速度分析最大距離(公尺)
+    // 夜間時段可讓用戶自訂，這裡預設 0~6 點
+    let NIGHT_START = 0, NIGHT_END = 6;
+    // 若有自訂夜間時段，可從 localStorage 讀取
+    if (localStorage.getItem('night_start')) NIGHT_START = parseInt(localStorage.getItem('night_start'));
+    if (localStorage.getItem('night_end')) NIGHT_END = parseInt(localStorage.getItem('night_end'));
 
+    // 1. 熱區分析（最常經過點位，優先顯示名稱）
     if (processedPointsForAI.length > 1) {
-        const clusters = clusterHotZones(processedPointsForAI, CLUSTER_RADIUS_METERS);
-        clusters.sort((a, b) => b.points.length - a.points.length);
-        const hotClusters = clusters.filter(c => c.points.length > 1 && c.points.length === clusters[0].points.length);
-        if (hotClusters.length > 0) {
-            hotZoneHtml = `<p class="text-xs text-gray-400 mb-2">聚合半徑: ${CLUSTER_RADIUS_METERS} 公尺</p>`;
-            hotClusters.forEach(cluster => {
-                const centerLat = cluster.center.lat.toFixed(6), centerLon = cluster.center.lon.toFixed(6);
-                hotZoneHtml += `<div class="dashboard-list-item"><span class="clickable-coord" data-lat="${centerLat}" data-lon="${centerLon}" data-radius="${CLUSTER_RADIUS_METERS}">中心: ${centerLat}, ${centerLon}</span> (共 ${cluster.points.length} 點)</div>`;
+        // 統計每個點位（以名稱或經緯度為 key）出現次數
+        const freqMap = {};
+        processedPointsForAI.forEach(p => {
+            const key = getPointName(p);
+            if (!freqMap[key]) freqMap[key] = { count: 0, lat: p.lat, lon: p.lon, sample: p };
+            freqMap[key].count++;
+        });
+        // 依出現次數排序
+        const freqArr = Object.values(freqMap).sort((a, b) => b.count - a.count);
+        if (freqArr.length > 0 && freqArr[0].count > 1) {
+            hotZoneHtml = `<p class="text-xs text-gray-400 mb-2">依點位名稱統計，僅顯示經過次數 &gt; 1 的點</p>`;
+            freqArr.filter(f => f.count > 1).forEach(f => {
+                hotZoneHtml += `<div class="dashboard-list-item">
+                    <span class="clickable-coord" data-lat="${f.lat}" data-lon="${f.lon}">${getPointName(f.sample)}</span>
+                    <span class="ml-2 text-yellow-300">(${f.count} 次)</span>
+                </div>`;
             });
-            if (!hotzoneCircle) hotzoneCircle = L.circle([0,0], { radius: CLUSTER_RADIUS_METERS, color: '#f97316', fillColor: '#f97316', fillOpacity: 0.2 });
-        } else { hotZoneHtml = '<span class="text-gray-400">無明顯熱區</span>'; }
-    } else { hotZoneHtml = '<span class="text-gray-400">資料不足</span>'; }
+        } else {
+            hotZoneHtml = '<span class="text-gray-400">無明顯熱區</span>';
+        }
+    } else {
+        hotZoneHtml = '<span class="text-gray-400">資料不足</span>';
+    }
 
+    // 2. 每日「起始點」與「結束點」(加註僅為偵測點)
     Object.keys(pointsByDate).sort().forEach(date => {
         const dailyPoints = pointsByDate[date];
         if(dailyPoints.length === 0) return;
         const firstPoint = dailyPoints[0], lastPoint = dailyPoints[dailyPoints.length - 1];
-        dailyStartHtml += `<div class="dashboard-list-item">${date}: <span class="clickable-coord" data-lat="${firstPoint.lat}" data-lon="${firstPoint.lon}">${firstPoint.time.toLocaleTimeString('zh-TW')}</span></div>`;
-        dailyEndHtml += `<div class="dashboard-list-item">${date}: <span class="clickable-coord" data-lat="${lastPoint.lat}" data-lon="${lastPoint.lon}">${lastPoint.time.toLocaleTimeString('zh-TW')}</span></div>`;
+        dailyStartHtml += `<div class="dashboard-list-item">${date}: <span class="clickable-coord" data-lat="${firstPoint.lat}" data-lon="${firstPoint.lon}">${getPointName(firstPoint)}</span>
+            <span class="text-xs text-gray-400 ml-1">(僅為偵測點)</span></div>`;
+        dailyEndHtml += `<div class="dashboard-list-item">${date}: <span class="clickable-coord" data-lat="${lastPoint.lat}" data-lon="${lastPoint.lon}">${getPointName(lastPoint)}</span>
+            <span class="text-xs text-gray-400 ml-1">(僅為偵測點)</span></div>`;
     });
-    
+
+    // 3. 異常停留點分析（顯示參數，提醒僅偵測點位停留）
+    if (processedPointsForAI.length > 1) {
+        let stayGroups = [];
+        let lastKey = null, group = [];
+        processedPointsForAI.forEach((p, i) => {
+            const key = getPointName(p);
+            if (key === lastKey) {
+                group.push(p);
+            } else {
+                if (group.length >= STAY_MIN_COUNT) stayGroups.push([...group]);
+                group = [p];
+                lastKey = key;
+            }
+        });
+        if (group.length >= STAY_MIN_COUNT) stayGroups.push([...group]);
+        // 篩選每組內最大間隔不得超過 STAY_MAX_INTERVAL_MIN
+        stayGroups = stayGroups.filter(g => {
+            let valid = true;
+            for (let i = 1; i < g.length; i++) {
+                const diff = Math.abs((g[i].time - g[i-1].time) / 60000);
+                if (diff > STAY_MAX_INTERVAL_MIN) { valid = false; break; }
+            }
+            return valid;
+        });
+        stayPointHtml = `<div class="dashboard-list-item text-xs text-gray-400">最小偵測次數：${STAY_MIN_COUNT}，最大間隔：${STAY_MAX_INTERVAL_MIN} 分鐘</div>`;
+        stayPointHtml += `<div class="dashboard-list-item text-xs text-yellow-400">僅能偵測在攝影機點位的停留</div>`;
+        if (stayGroups.length > 0) {
+            stayGroups.forEach(g => {
+                const p = g[0];
+                const duration = Math.round((g[g.length-1].time - p.time)/60000);
+                stayPointHtml += `<div class="dashboard-list-item">
+                    <span class="clickable-coord" data-lat="${p.lat}" data-lon="${p.lon}">${getPointName(p)}</span>
+                    <span class="ml-2">${g.length} 次，約${duration}分鐘</span>
+                </div>`;
+            });
+        } else {
+            stayPointHtml += '<span class="text-gray-400">無明顯停留點</span>';
+        }
+    } else {
+        stayPointHtml = '<span class="text-gray-400">資料不足</span>';
+    }
+
+    // 4. 異常路徑/繞路偵測（如有路網可擴充）
+    if (processedPointsForAI.length > 1) {
+        let abnormalList = [];
+        let lastKey = null;
+        processedPointsForAI.forEach((p, i) => {
+            const key = getPointName(p);
+            if (key === lastKey) return;
+            const prevIdx = processedPointsForAI.findIndex((pp, idx) => idx < i && getPointName(pp) === key);
+            if (prevIdx !== -1) {
+                abnormalList.push({ idx: i, lat: p.lat, lon: p.lon, time: p.time, type: '重複經過', name: getPointName(p) });
+            }
+            lastKey = key;
+        });
+        for (let i = 2; i < processedPointsForAI.length; i++) {
+            const k1 = getPointName(processedPointsForAI[i-2]);
+            const k2 = getPointName(processedPointsForAI[i-1]);
+            const k3 = getPointName(processedPointsForAI[i]);
+            if (k1 === k3 && k1 !== k2) {
+                abnormalList.push({ idx: i, lat: processedPointsForAI[i].lat, lon: processedPointsForAI[i].lon, time: processedPointsForAI[i].time, type: '折返', name: k3 });
+            }
+        }
+        abnormalPathHtml = `<div class="dashboard-list-item text-xs text-gray-400">僅根據偵測點順序，無法判斷是否繞遠路</div>`;
+        if (abnormalList.length > 0) {
+            abnormalList.forEach(a => {
+                abnormalPathHtml += `<div class="dashboard-list-item">
+                    <span class="clickable-coord" data-lat="${a.lat}" data-lon="${a.lon}">${a.name}</span>
+                    <span class="ml-2 text-yellow-400">${a.type}</span>
+                </div>`;
+            });
+        } else {
+            abnormalPathHtml += '<span class="text-gray-400">未發現異常路徑</span>';
+        }
+    } else {
+        abnormalPathHtml = '<span class="text-gray-400">資料不足</span>';
+    }
+
+    // 5. 速度異常分析（顯示資料間隔過大提醒）
+    if (processedPointsForAI.length > 1) {
+        let speedList = [];
+        for (let i = 1; i < processedPointsForAI.length; i++) {
+            const p1 = processedPointsForAI[i-1], p2 = processedPointsForAI[i];
+            const dist = calculateDistance(p1.lat, p1.lon, p2.lat, p2.lon);
+            const tmin = Math.abs((p2.time - p1.time) / 60000);
+            if (dist < SPEED_NEARBY_METERS && tmin > 0) {
+                const speed = dist / (tmin * 60); // m/s
+                if (speed > 50/3.6) {
+                    speedList.push({ lat: p2.lat, lon: p2.lon, time: p2.time, speed: (speed*3.6).toFixed(1), type: '過快', name: getPointName(p2) });
+                }
+            } else if (tmin > SPEED_MAX_INTERVAL_MIN) {
+                speedList.push({ lat: p2.lat, lon: p2.lon, time: p2.time, speed: '-', type: '資料間隔過大', name: getPointName(p2) });
+            }
+        }
+        speedAbnormalHtml = `<div class="dashboard-list-item text-xs text-gray-400">資料間隔過大僅供參考</div>`;
+        if (speedList.length > 0) {
+            speedList.forEach(s => {
+                speedAbnormalHtml += `<div class="dashboard-list-item">
+                    <span class="clickable-coord" data-lat="${s.lat}" data-lon="${s.lon}">${s.name}</span>
+                    <span class="ml-2 text-red-400">${s.type}</span>
+                    ${s.speed !== '-' ? `<span class="ml-2">(${s.speed} km/h)</span>` : ''}
+                </div>`;
+            });
+        } else {
+            speedAbnormalHtml += '<span class="text-gray-400">未發現速度異常</span>';
+        }
+    } else {
+        speedAbnormalHtml = '<span class="text-gray-400">資料不足</span>';
+    }
+
+    // 6. 夜間活動偵測（可自訂夜間時段）
+    if (processedPointsForAI.length > 0) {
+        let nightList = [];
+        processedPointsForAI.forEach(p => {
+            const hour = p.time.getHours();
+            if (hour >= NIGHT_START && hour < NIGHT_END) {
+                nightList.push(p);
+            }
+        });
+        nightActivityHtml = `<div class="dashboard-list-item text-xs text-gray-400">夜間時段：${NIGHT_START}:00 ~ ${NIGHT_END}:00，可於設定自訂</div>`;
+        if (nightList.length > 0) {
+            nightList.forEach(p => {
+                nightActivityHtml += `<div class="dashboard-list-item">
+                    <span class="clickable-coord" data-lat="${p.lat}" data-lon="${p.lon}">${getPointName(p)} (${p.time.toLocaleString('zh-TW')})</span>
+                </div>`;
+            });
+        } else {
+            nightActivityHtml += '<span class="text-gray-400">無夜間活動</span>';
+        }
+    } else {
+        nightActivityHtml = '<span class="text-gray-400">資料不足</span>';
+    }
+
+    // 7. 自訂條件篩選（顯示參數調整建議）
+    if (processedPointsForAI.length > 1) {
+        const totalMin = Math.abs((processedPointsForAI[processedPointsForAI.length-1].time - processedPointsForAI[0].time)/60000);
+        const density = (processedPointsForAI.length / (totalMin/60)).toFixed(2);
+        customFilterHtml += `<div class="dashboard-list-item text-xs text-gray-400">資料密度：約 ${density} 點/小時</div>`;
+        customFilterHtml += `<div class="dashboard-list-item text-xs text-gray-400">可於設定調整「最小停留時長」、「最小偵測次數」、「夜間時段」等參數</div>`;
+    } else {
+        customFilterHtml = '<span class="text-gray-400">資料不足</span>';
+    }
+
+    // 寫入各區塊
     hotZoneDisplay.innerHTML = hotZoneHtml;
     dailyStartDisplay.innerHTML = dailyStartHtml;
     dailyEndDisplay.innerHTML = dailyEndHtml;
+    document.getElementById('stay-point-display').innerHTML = stayPointHtml;
+    document.getElementById('abnormal-path-display').innerHTML = abnormalPathHtml;
+    document.getElementById('speed-abnormal-display').innerHTML = speedAbnormalHtml;
+    document.getElementById('night-activity-display').innerHTML = nightActivityHtml;
+    document.getElementById('custom-filter-display').innerHTML = customFilterHtml;
 
+    // 點擊座標自動定位
     dashboardPanel.querySelectorAll('.clickable-coord').forEach(el => {
         el.addEventListener('click', (e) => {
             const lat = parseFloat(e.target.dataset.lat), lon = parseFloat(e.target.dataset.lon);
@@ -827,6 +1154,16 @@ document.querySelectorAll('.panel-header').forEach(header => {
         // 不收合，僅供拖曳
     });
 });
+
+// 移除原本的 trackColorSet
+// const trackColorSet = ['#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'];
+
+// 新增：根據總數自動產生顏色
+function getTrackColor(index, total) {
+    // 色相環均分，避免太淡
+    const hue = Math.round((index * 360 / total) % 360);
+    return `hsl(${hue}, 80%, 50%)`;
+}
 </script>
 </body>
 </html>
