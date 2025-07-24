@@ -77,18 +77,87 @@ html,body {height:100%;margin:0;font-family: 'Inter', 'Noto Sans TC', sans-serif
 .loader { border: 4px solid rgba(249, 250, 251, 0.2); border-top: 4px solid #f9fafb; border-radius: 50%; width: 1.5rem; height: 1.5rem; animation: spin 1s linear infinite; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 /* Floating Panel Styles */
-.floating-panel { position: absolute; top: 20px; right: 20px; z-index: 100; width: 320px; background: #232b38e8; backdrop-filter: blur(8px); border-radius: .7em; box-shadow: 0 2px 10px #0005; transition: all .3s; }
-.floating-panel.collapsed .panel-content { max-height: 0; padding-top: 0; padding-bottom: 0; opacity: 0; }
-.panel-header { display: flex; justify-content: space-between; align-items: center; padding: .8em 1.2em; cursor: pointer; border-bottom: 1px solid #4b5563; }
-.panel-header h3 { font-size: 1.1rem; font-weight: 700; margin: 0; color: #f3f4f6; }
-.panel-toggle-btn { background: none; border: none; color: #9ca3af; cursor: pointer; transition: transform .3s; }
-.floating-panel.collapsed .panel-toggle-btn { transform: rotate(-180deg); }
-.panel-content { padding: 1.2em; max-height: 250px; overflow-y: auto; transition: all .3s; }
+.floating-panel {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 100;
+    width: 320px;
+    background: #232b38e8;
+    backdrop-filter: blur(8px);
+    border-radius: .7em;
+    box-shadow: 0 2px 10px #0005;
+    transition: box-shadow .3s, background .3s;
+    user-select: none;
+    cursor: default;
+}
+.floating-panel.dragging {
+    box-shadow: 0 8px 32px #0008;
+    opacity: 0.96;
+    cursor: move;
+}
+.floating-panel.collapsed .panel-content {
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    opacity: 0;
+    pointer-events: none;
+    transition: max-height .3s, opacity .3s, padding .3s;
+}
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: .8em 1.2em;
+    cursor: grab;
+    border-bottom: 1px solid #4b5563;
+    user-select: none;
+    background: transparent;
+}
+.panel-header:active {
+    cursor: grabbing;
+}
+.panel-header h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+    color: #f3f4f6;
+    pointer-events: none;
+}
+.panel-toggle-btn {
+    background: none;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    transition: transform .3s;
+    font-size: 1.1em;
+    margin-left: 0.5em;
+    padding: 0;
+}
+.floating-panel.collapsed .panel-toggle-btn {
+    transform: rotate(-180deg);
+}
+.panel-content {
+    padding: 1.2em;
+    max-height: 250px;
+    overflow-y: auto;
+    transition: max-height .3s, opacity .3s, padding .3s;
+    opacity: 1;
+}
 .dashboard-list { max-height: 120px; overflow-y: auto; font-size: 0.9em; }
 .dashboard-list-item { padding: 0.25rem 0.5rem; border-radius: 0.25rem; }
 .dashboard-list-item:hover { background-color: #4b5563; }
 .clickable-coord { color: #60a5fa; cursor: pointer; text-decoration: underline; }
-.track-date-list .date-item {display:flex;align-items:center;justify-content:space-between; margin-bottom:.5em;}
+.track-date-list .date-item {
+    display: flex;
+    align-items: center;
+    justify-content: center; /* 由 space-between 改為 center 以置中 */
+    margin-bottom: .5em;
+    gap: 0.5em; /* 增加間距讓 checkbox 與 label 不會太擠 */
+}
+@media (max-width:800px){
+    .floating-panel { width: 96vw; right: 2vw; }
+}
 </style>
 </head>
 <body>
@@ -134,10 +203,10 @@ html,body {height:100%;margin:0;font-family: 'Inter', 'Noto Sans TC', sans-serif
 </aside>
 
 <!-- Floating Panels -->
-<div id="layerControlPanel" class="floating-panel hidden">
-    <div class="panel-header">
+<div id="layerControlPanel" class="floating-panel hidden" style="top: 20px; right: 20px;">
+    <div class="panel-header" data-panel="layer">
         <h3><i class="fa fa-layer-group mr-2"></i>軌跡圖層控制</h3>
-        <button class="panel-toggle-btn"><i class="fa fa-chevron-up"></i></button>
+        <button class="panel-toggle-btn" tabindex="-1"><i class="fa fa-chevron-up"></i></button>
     </div>
     <div class="panel-content">
         <button id="toggleAllTracksBtn" style="width:100%;background:#374151;color:#fff;border:none;border-radius:.5em;padding:.55em 1em;margin-bottom:1em;font-size:1em;cursor:pointer;">顯示/隱藏所有</button>
@@ -145,10 +214,10 @@ html,body {height:100%;margin:0;font-family: 'Inter', 'Noto Sans TC', sans-serif
     </div>
 </div>
 
-<div id="dashboardPanel" class="floating-panel hidden" style="top: 240px;">
-     <div class="panel-header">
+<div id="dashboardPanel" class="floating-panel hidden" style="top: 240px; right: 20px;">
+     <div class="panel-header" data-panel="dashboard">
         <h3><i class="fa fa-tachometer-alt mr-2"></i>偵查儀表板</h3>
-        <button class="panel-toggle-btn"><i class="fa fa-chevron-up"></i></button>
+        <button class="panel-toggle-btn" tabindex="-1"><i class="fa fa-chevron-up"></i></button>
     </div>
     <div class="panel-content">
         <div><h4 class="font-semibold mb-2 text-gray-300">最常經過點位</h4><div id="hot-zone-display" class="dashboard-list"></div></div>
@@ -403,8 +472,15 @@ function drawTracks() {
             updateVisibleLayers();
             statusDiv.textContent = `成功繪製 ${dates.length} 天的軌跡！`;
             actionsPanel.style.display = 'block';
-            layerControlPanel.classList.remove('hidden');
-            dashboardPanel.classList.remove('hidden');
+
+            // --- 自動展開並避免重疊 ---
+            layerControlPanel.classList.remove('hidden', 'collapsed');
+            dashboardPanel.classList.remove('hidden', 'collapsed');
+            // 設定兩面板不重疊
+            layerControlPanel.style.top = '20px';
+            layerControlPanel.style.right = '20px';
+            dashboardPanel.style.top = (layerControlPanel.offsetTop + layerControlPanel.offsetHeight + 20) + 'px';
+            dashboardPanel.style.right = '20px';
 
         } catch (err) { statusDiv.textContent = `繪製失敗: ${err.message}`; }
     }, 50);
@@ -692,6 +768,65 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 
     return R * c; // in metres
 }
+
+// --- Panel UX Enhancement ---
+function makePanelDraggable(panelId) {
+    const panel = document.getElementById(panelId);
+    const header = panel.querySelector('.panel-header');
+    let isDragging = false, startX, startY, origX, origY;
+
+    header.addEventListener('mousedown', (e) => {
+        // 只允許滑鼠左鍵且不是點擊收合按鈕
+        if (e.button !== 0 || e.target.closest('.panel-toggle-btn')) return;
+        isDragging = true;
+        panel.classList.add('dragging');
+        startX = e.clientX;
+        startY = e.clientY;
+        const rect = panel.getBoundingClientRect();
+        origX = rect.left;
+        origY = rect.top;
+        document.body.style.userSelect = 'none';
+    });
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        let dx = e.clientX - startX, dy = e.clientY - startY;
+        let newX = origX + dx, newY = origY + dy;
+        // 限制不拖出視窗
+        const winW = window.innerWidth, winH = window.innerHeight;
+        const panelRect = panel.getBoundingClientRect();
+        newX = Math.max(0, Math.min(newX, winW - panelRect.width));
+        newY = Math.max(0, Math.min(newY, winH - 40));
+        panel.style.left = newX + 'px';
+        panel.style.top = newY + 'px';
+        panel.style.right = 'auto';
+        panel.style.bottom = 'auto';
+    });
+    document.addEventListener('mouseup', () => {
+        if (isDragging) {
+            isDragging = false;
+            panel.classList.remove('dragging');
+            document.body.style.userSelect = '';
+        }
+    });
+    // 防止內容區域點擊時觸發 header 收合
+    panel.querySelector('.panel-content').addEventListener('mousedown', e => e.stopPropagation());
+}
+makePanelDraggable('layerControlPanel');
+makePanelDraggable('dashboardPanel');
+
+// --- Panel Collapse/Expand UX ---
+document.querySelectorAll('.panel-header').forEach(header => {
+    // 只點擊 panel-toggle-btn 或 header 右側收合按鈕才收合
+    header.querySelector('.panel-toggle-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        header.parentElement.classList.toggle('collapsed');
+    });
+    // 防止標題拖曳時誤觸收合
+    header.addEventListener('click', (e) => {
+        if (e.target.closest('.panel-toggle-btn')) return;
+        // 不收合，僅供拖曳
+    });
+});
 </script>
 </body>
 </html>
