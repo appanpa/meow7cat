@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>車軌地圖工具箱 (功能整合版)</title>
+<title>車行軌跡視覺化</title>
 <meta name="robots" content="noindex, nofollow">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
@@ -39,14 +39,23 @@ html,body {height:100%;margin:0;font-family: 'Inter', 'Noto Sans TC', sans-serif
 .sidebar-header {display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5em;}
 .sidebar-header h2 {font-size:1.8em;font-weight:900;color:#fff;letter-spacing:1px;}
 .sidebar section {margin-bottom:1.5em;}
-.sidebar section h3 {font-size:1.2rem;font-weight:700;margin-bottom:.8em;color:#f3f4f6;}
-.sidebar input[type="file"], .sidebar select, .sidebar input[type="button"], .sidebar button {width:100%;background:#374151;color:#fff;border:none;border-radius:.5em;padding:.65em 1em;margin-bottom:.5em;font-size:1em;cursor:pointer;transition:background .2s;text-align:left;}
-.sidebar input[type="file"]:hover, .sidebar input[type="button"]:hover, .sidebar button:hover, .sidebar select:hover {background:#4b5563;}
+.sidebar section h3 {font-size:1.2rem;font-weight:700;margin-bottom:.8em;color:#f3f4f6; display: flex; align-items: center; gap: 0.5rem;}
+.sidebar input[type="file"], .sidebar select, .sidebar input[type="button"], .sidebar button, .sidebar input[type="password"] {width:100%;background:#374151;color:#fff;border:none;border-radius:.5em;padding:.65em 1em;margin-bottom:.5em;font-size:1em;cursor:pointer;transition:background .2s;text-align:left;}
+.sidebar input[type="file"]:hover, .sidebar input[type="button"]:hover, .sidebar button:hover, .sidebar select:hover, .sidebar input[type="password"]:hover {background:#4b5563;}
 .sidebar button:disabled { background: #4b5563; cursor: not-allowed; }
 /* Custom file input */
 .file-input-wrapper { background-color: #374151; border-radius: .5em; padding: .65em 1em; display: flex; align-items: center; cursor: pointer; }
 .file-input-wrapper:hover { background-color: #4b5563; }
 .file-input-wrapper .file-name { margin-left: .5rem; color: #d1d5db; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+#sidebar-api-key-input {
+    text-align: center;
+    background-color: #4b5563;
+}
+#sidebar-api-key-input::placeholder {
+    text-align: center;
+    color: #d1d5db;
+}
 
 @media (max-width:800px){.sidebar{width:84vw;}}
 /* Marker Styles */
@@ -79,7 +88,7 @@ html,body {height:100%;margin:0;font-family: 'Inter', 'Noto Sans TC', sans-serif
 .dashboard-list-item { padding: 0.25rem 0.5rem; border-radius: 0.25rem; }
 .dashboard-list-item:hover { background-color: #4b5563; }
 .clickable-coord { color: #60a5fa; cursor: pointer; text-decoration: underline; }
-.track-date-list .date-item {display:flex;align-items:center;margin-bottom:.5em;}
+.track-date-list .date-item {display:flex;align-items:center;justify-content:space-between; margin-bottom:.5em;}
 </style>
 </head>
 <body>
@@ -95,7 +104,7 @@ html,body {height:100%;margin:0;font-family: 'Inter', 'Noto Sans TC', sans-serif
             <h2>車軌地圖工具</h2>
         </div>
         <section>
-            <h3>步驟一：檔案上傳</h3>
+            <h3>步驟一：檔案上傳 <i class="fa fa-question-circle text-sm text-gray-400" onclick="showModal('alert', { message: '上傳車行軌跡檔案，支援格式: GPX, JSON, CSV, XLS, XLSX' })" style="cursor: pointer;"></i></h3>
             <label for="fileUpload" class="file-input-wrapper">
                 <i class="fa fa-folder-open"></i>
                 <span class="file-name">選擇檔案</span>
@@ -108,8 +117,18 @@ html,body {height:100%;margin:0;font-family: 'Inter', 'Noto Sans TC', sans-serif
         <div id="actionsPanel" class="space-y-2" style="display:none;">
             <button id="btnDownloadMap"><i class="fa fa-camera w-5"></i> 下載軌跡圖檔</button>
             <button id="btnGoogleRoute"><i class="fa fa-location-arrow w-5"></i> 預測行車路線</button>
-            <hr class="my-2 border-gray-700">
-            <button id="btnAiAnalysis"><i class="fa fa-brain w-5"></i> 軌跡智慧分析</button>
+            <section id="ai-settings-panel" class="mt-4 pt-4 border-t border-gray-700">
+                 <h3>AI 功能</h3>
+                 <p class="text-gray-400 text-sm mb-3">
+                    此功能需要您提供個人的 Google AI API 金鑰。
+                    您可以點擊<a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:underline">這裡</a>免費取得。
+                </p>
+                <div class="flex items-center gap-2">
+                    <input type="password" id="sidebar-api-key-input" placeholder="貼上您的 API 金鑰" class="flex-grow">
+                    <button id="sidebar-save-api-key-btn" style="width:auto; padding: 0.65em;"><i class="fa fa-save"></i></button>
+                </div>
+                <button id="btnAiAnalysis" class="mt-4"><i class="fa fa-brain w-5"></i> ✨ 軌跡智慧分析</button>
+            </section>
         </div>
     </div>
 </aside>
@@ -171,6 +190,8 @@ const hotZoneDisplay = document.getElementById('hot-zone-display');
 const dailyStartDisplay = document.getElementById('daily-start-display');
 const dailyEndDisplay = document.getElementById('daily-end-display');
 const fileNameSpan = document.querySelector('.file-name');
+const sidebarApiKeyInput = document.getElementById('sidebar-api-key-input');
+const sidebarSaveApiKeyBtn = document.getElementById('sidebar-save-api-key-btn');
 
 
 // --- Initialization ---
@@ -178,6 +199,11 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors',
     maxZoom: 19
 }).addTo(map);
+
+document.addEventListener('DOMContentLoaded', () => {
+    const savedApiKey = localStorage.getItem('gemini_api_key_trajectory');
+    if (savedApiKey) sidebarApiKeyInput.value = savedApiKey;
+});
 
 // --- Event Listeners ---
 sidebarToggle.onclick = (e) => {
@@ -197,6 +223,11 @@ document.getElementById('btnDownloadMap').addEventListener('click', downloadMapI
 document.getElementById('btnGoogleRoute').addEventListener('click', openGoogleMapsRoute);
 document.getElementById('btnAiAnalysis').addEventListener('click', () => showModal('analysis'));
 document.getElementById('toggleAllTracksBtn').addEventListener('click', () => toggleAllTracks());
+sidebarSaveApiKeyBtn.addEventListener('click', () => {
+    const apiKey = sidebarApiKeyInput.value.trim();
+    localStorage.setItem('gemini_api_key_trajectory', apiKey);
+    showModal('alert', { message: apiKey ? 'API 金鑰已儲存' : 'API 金鑰已清除' });
+});
 
 document.querySelectorAll('.panel-header').forEach(header => {
     header.addEventListener('click', () => {
@@ -290,9 +321,9 @@ function populateColumnSelectors() {
          </div>`;
 
     fieldSelectorDiv.innerHTML = `
-        ${createSelect('colTime', '指定「時間」欄位：', timeIdx)}
-        ${createSelect('colLat', '指定「緯度」欄位：', latIdx)}
-        ${createSelect('colLng', '指定「經度」欄位：', lngIdx)}
+        ${createSelect('colTime', '指定上傳檔案內「日期時間」欄位：', timeIdx)}
+        ${createSelect('colLat', '指定上傳檔案內「緯度」欄位：', latIdx)}
+        ${createSelect('colLng', '指定上傳檔案內「經度」欄位：', lngIdx)}
         <button onclick="drawTracks()" class="mt-4"><i class="fa fa-map-marked-alt"></i> 繪製軌跡</button>
     `;
 }
@@ -509,7 +540,7 @@ function openGoogleMapsRoute() {
     window.open(url, '_blank');
 }
 
-async function handleAiAnalysis() {
+async function handleAiAnalysis(prompt) {
     const submitBtn = document.getElementById('ai-submit-btn');
     const outputArea = document.getElementById('ai-output');
     const originalHTML = submitBtn.innerHTML;
@@ -517,16 +548,9 @@ async function handleAiAnalysis() {
     submitBtn.innerHTML = '<div class="loader mx-auto"></div>';
     outputArea.value = "AI 正在分析中...";
     try {
-        if (processedPointsForAI.length === 0) throw new Error("沒有可供分析的軌跡資料。");
-        const userPrompt = document.getElementById('custom-prompt-input').value.trim();
-        if (!userPrompt) throw new Error("請輸入分析指令。");
-
-        const dataString = processedPointsForAI.map(p => JSON.stringify(p)).join('\n');
-        const prompt = `你是一位專業的數據分析師。請根據以下 JSON 格式的軌跡數據，用繁體中文回答「使用者的問題」。\n\n【軌跡數據】:\n${dataString}\n\n【使用者的問題】:\n${userPrompt}\n\n【你的分析】:`;
-        
-        let apiKey = localStorage.getItem('gemini_api_key_trajectory');
+        let apiKey = sidebarApiKeyInput.value.trim() || localStorage.getItem('gemini_api_key_trajectory');
         if (!apiKey) {
-            throw new Error("請先在輸入框中提供您的 Google AI API 金鑰。");
+            throw new Error("請先在側邊欄的 AI 功能設定中提供您的 Google AI API 金鑰。");
         }
         
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
@@ -573,17 +597,9 @@ function showModal(type, data) {
                 <h2 class="text-xl font-bold"><i class="fa fa-brain mr-2"></i>軌跡智慧分析</h2>
                 ${closeButtonHtml}
             </div>
-            <p class="text-gray-400 text-sm my-3">
-                此功能需要您提供個人的 Google AI API 金鑰。
-                您可以點擊<a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:underline">這裡</a>免費取得。
-            </p>
-            <div class="input-group">
-                <input type="password" id="api-key-input" placeholder="貼上您的 API 金鑰">
-                <button id="save-api-key-btn"><i class="fa fa-save"></i></button>
-            </div>
-            <textarea id="custom-prompt-input" rows="3" placeholder="例如：請找出所有停留超過10分鐘的地點。"></textarea>
+            <textarea id="custom-prompt-input" rows="4" placeholder="例如：請找出所有停留超過10分鐘的地點。" class="mt-4"></textarea>
             <button id="ai-submit-btn" class="mt-4"><i class="fa fa-paper-plane mr-2"></i>送出分析</button>
-            <textarea id="ai-output" rows="8" class="mt-2" placeholder="AI 分析結果將顯示於此..." readonly></textarea>`;
+            <textarea id="ai-output" rows="10" class="mt-2" placeholder="AI 分析結果將顯示於此..." readonly></textarea>`;
     } else if (type === 'alert') {
         html = `<h2>提示</h2><p class="my-4">${data.message}</p>${closeButtonHtml}`;
     }
@@ -592,14 +608,20 @@ function showModal(type, data) {
     modal.classList.remove('hide');
 
     if (type === 'analysis') {
-        document.getElementById('save-api-key-btn').onclick = () => {
-            const apiKey = document.getElementById('api-key-input').value.trim();
-            localStorage.setItem('gemini_api_key_trajectory', apiKey);
-            showModal('alert', { message: apiKey ? 'API 金鑰已儲存' : 'API 金鑰已清除' });
+        document.getElementById('ai-submit-btn').onclick = () => {
+            if (processedPointsForAI.length === 0) {
+                showModal('alert', { message: "沒有可供分析的軌跡資料。" });
+                return;
+            }
+            const userPrompt = document.getElementById('custom-prompt-input').value.trim();
+            if (!userPrompt) {
+                showModal('alert', { message: "請輸入您的分析指令。" });
+                return;
+            }
+            const dataString = processedPointsForAI.map(p => JSON.stringify(p)).join('\n');
+            const prompt = `你是一位專業的數據分析師。請根據以下 JSON 格式的軌跡數據，用繁體中文回答「使用者的問題」。\n\n【軌跡數據】:\n${dataString}\n\n【使用者的問題】:\n${userPrompt}\n\n【你的分析】:`;
+            handleAiAnalysis(prompt);
         };
-        const savedApiKey = localStorage.getItem('gemini_api_key_trajectory');
-        if (savedApiKey) document.getElementById('api-key-input').value = savedApiKey;
-        document.getElementById('ai-submit-btn').onclick = handleAiAnalysis;
     }
 }
 
