@@ -6,44 +6,57 @@
     <title>線上工具箱</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', 'Noto Sans TC', sans-serif;
-            background-color: #f9fafb;
+            background-color: #1f2937; /* 灰黑背景 */
+            color: #f9fafb;
         }
+
         .tool-card {
-            background-color: white;
+            background-color: #374151; /* 淺灰色工具區塊背景 */
+            border: 1px solid #4b5563;
             border-radius: 0.75rem;
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
             transition: all 0.3s ease-in-out;
             overflow: hidden;
             display: flex;
             flex-direction: column;
+            position: relative;
         }
+
         .tool-card:hover {
-            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-            transform: translateY(-4px);
+            border-color: #9ca3af;
+            box-shadow: 0 0 15px 0px rgba(156, 163, 175, 0.2);
+            transform: translateY(-5px);
         }
+
         .tool-card-content {
             padding: 1.5rem;
             flex-grow: 1;
             display: flex;
             flex-direction: column;
         }
+
         .tool-card-icon {
             font-size: 2.5rem;
             margin-bottom: 1rem;
         }
+
         .tool-card-title {
             font-size: 1.5rem;
             font-weight: 700;
-            color: #1f2937;
+            color: #ffffff;
         }
+
         .tool-card-description {
-            color: #4b5563;
+            color: #d1d5db;
             margin-top: 0.5rem;
             flex-grow: 1;
         }
+
         .tool-card-button {
             display: block;
             text-align: center;
@@ -56,9 +69,11 @@
             transition: background-color 0.3s;
             text-decoration: none;
         }
+
         .tool-card-button:hover {
             background-color: #4338ca;
         }
+
         .coming-soon-badge {
             position: absolute;
             top: 10px;
@@ -70,13 +85,25 @@
             font-size: 0.875rem;
             font-weight: 600;
         }
+
         .disabled-card {
-            opacity: 0.6;
-            cursor: not-allowed;
+            opacity: 0.7;
+            filter: grayscale(30%);
         }
+
         .disabled-card:hover {
             transform: none;
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            border-color: #4b5563;
+            box-shadow: none;
+        }
+        
+        .disabled-button {
+            background-color: #6b7280;
+            color: #d1d5db;
+            cursor: not-allowed;
+        }
+        .disabled-button:hover {
+            background-color: #6b7280;
         }
     </style>
 </head>
@@ -84,59 +111,76 @@
 
     <div class="max-w-6xl mx-auto">
         <header class="text-center mb-12">
-            <h1 class="text-4xl md:text-5xl font-extrabold text-gray-800"> </h1>
-            <p class="text-gray-600 mt-3 text-lg">一個集合多種實用工具的網站，讓您的工作更有效率。</p>
+            <h1 class="text-4xl md:text-5xl font-extrabold text-white">線上工具箱</h1>
+            <p class="text-gray-400 mt-3 text-lg">一個集合多種實用工具的網站，讓您的工作更有效率。</p>
         </header>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
 
-            <!-- 工具 1: 智慧型 PDF 工具 (已完成) -->
+            <!-- 工具 1: PDF 工具 -->
             <div class="tool-card">
                 <div class="tool-card-content">
                     <i class="fas fa-file-pdf tool-card-icon text-red-500"></i>
                     <h3 class="tool-card-title">PDF TOOLS</h3>
                     <p class="tool-card-description">提供 PDF 分割、合併、加上頁碼等基礎功能。</p>
-                    <!-- 更新後的連結 -->
-                    <a href="PDFTOOLS.html" class="tool-card-button" target="_blank" rel="noopener noreferrer">前往使用</a>
+                    <a href="PDFTOOLS.html" class="tool-card-button mt-auto" target="_blank" rel="noopener noreferrer">前往使用</a>
                 </div>
             </div>
 
-            <!-- 工具 2: 車型軌跡視覺化工具 -->
+            <!-- 工具 2: 車軌視覺化 -->
             <div class="tool-card">
                 <div class="tool-card-content">
-                    <i class="fas fa-car tool-card-icon text-blue-500"></i>
+                    <i class="fas fa-car-side tool-card-icon text-blue-500"></i>
                     <h3 class="tool-card-title">車軌視覺化</h3>
                     <p class="tool-card-description">結合路線規劃與 AI 分析，不僅呈現軌跡，更能洞察先機。</p>
-                    <a href="carmap.html" class="tool-card-button" target="_blank" rel="noopener noreferrer">前往使用</a>
+                    <a href="carmap.html" class="tool-card-button mt-auto" target="_blank" rel="noopener noreferrer">前往使用</a>
                 </div>
             </div>
 
-            <!-- 工具 3: 思考中 (未來開發範例) -->
-            <div class="tool-card disabled-card relative">
+            <!-- 工具 3: QR Code 產生器 (未來開發) -->
+            <div class="tool-card disabled-card">
                 <div class="coming-soon-badge">敬請期待</div>
                 <div class="tool-card-content">
                     <i class="fas fa-qrcode tool-card-icon text-green-500"></i>
-                    <h3 class="tool-card-title">我還在思考中</h3>
+                    <h3 class="tool-card-title">QR Code 產生器</h3>
                     <p class="tool-card-description">輸入網址或文字，立即產生可自訂樣式的 QR Code 圖片。</p>
-                    <a href="工具URL" class="tool-card-button" style="background-color: #9ca3af; cursor: not-allowed;">開發中</a>
+                    <a href="#" class="tool-card-button disabled-button mt-auto">開發中</a>
                 </div>
-             </div>
+            </div>
             
-            <!-- 工具 4: 思考中 (未來開發範例) -->
-            <div class="tool-card disabled-card relative">
+            <!-- 工具 4: 密碼產生器 (未來開發) -->
+            <div class="tool-card disabled-card">
                 <div class="coming-soon-badge">敬請期待</div>
                 <div class="tool-card-content">
-                    <i class="fas fa-qrcode tool-card-icon text-green-500"></i>
-                    <h3 class="tool-card-title">我還在思考中</h3>
-                    <p class="tool-card-description">思考中。</p>
-                    <a href="工具URL" class="tool-card-button" style="background-color: #9ca3af; cursor: not-allowed;">開發中</a>
+                    <i class="fas fa-key tool-card-icon text-yellow-500"></i>
+                    <h3 class="tool-card-title">安全密碼產生器</h3>
+                    <p class="tool-card-description">產生高強度隨機密碼，並可自訂長度與包含的字元類型。</p>
+                    <a href="#" class="tool-card-button disabled-button mt-auto">開發中</a>
                 </div>
-             </div>
-             <!-- 您可以在此處繼續增加更多工具卡片... -->
-             <!-- 您可以在此處繼續增加更多工具卡片... -->
-             <!-- 您可以在此處繼續增加更多工具卡片... -->
-             <!-- 您可以在此處繼續增加更多工具卡片... -->
-             <!-- 您可以在此處繼續增加更多工具卡片... -->
+            </div>
+
+            <!-- 工具 5: JSON 格式化工具 (未來開發) -->
+            <div class="tool-card disabled-card">
+                <div class="coming-soon-badge">敬請期待</div>
+                <div class="tool-card-content">
+                    <i class="fas fa-code tool-card-icon text-indigo-500"></i>
+                    <h3 class="tool-card-title">JSON 格式化工具</h3>
+                    <p class="tool-card-description">貼上雜亂的 JSON 資料，一鍵美化、驗證與排版，方便閱讀與除錯。</p>
+                    <a href="#" class="tool-card-button disabled-button mt-auto">開發中</a>
+                </div>
+            </div>
+
+            <!-- 工具 6: 色彩選擇器 (未來開發) -->
+            <div class="tool-card disabled-card">
+                <div class="coming-soon-badge">敬請期待</div>
+                <div class="tool-card-content">
+                    <i class="fas fa-palette tool-card-icon text-pink-500"></i>
+                    <h3 class="tool-card-title">進階色彩選擇器</h3>
+                    <p class="tool-card-description">從圖片擷取顏色，或在調色盤上選色，並轉換為 HEX、RGB、HSL 等格式。</p>
+                    <a href="#" class="tool-card-button disabled-button mt-auto">開發中</a>
+                </div>
+            </div>
+
         </div>
     </div>
 
