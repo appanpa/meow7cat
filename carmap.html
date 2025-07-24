@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>車軌地圖工具箱</title>
+<title>車軌地圖工具箱 (功能整合版)</title>
 <meta name="robots" content="noindex, nofollow">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/togeojson@0.16.0/dist/togeojson.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<!-- leaflet-arrowheads for direction arrows -->
-<script src="https://unpkg.com/leaflet-arrowheads@1.0.3/dist/leaflet-arrowheads.min.js"></script>
+<script src="https://unpkg.com/leaflet-polylinedecorator@1.6.0/dist/leaflet.polylineDecorator.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
 html,body {height:100%;margin:0;font-family: 'Inter', 'Noto Sans TC', sans-serif;background:#1f2937;color:#f9fafb;}
 #map {position:absolute;top:0;left:0;right:0;bottom:0;z-index:0;width:100vw;height:100vh;}
@@ -26,18 +26,94 @@ html,body {height:100%;margin:0;font-family: 'Inter', 'Noto Sans TC', sans-serif
 .sidebar-header {font-size:1.6em;font-weight:900;color:#fff;text-align:left;margin-bottom:1.2em;letter-spacing:1px;}
 .sidebar section {margin-bottom:1.2em;}
 .sidebar section h3 {font-size:1.1rem;font-weight:700;margin-bottom:.5em;color:#f3f4f6;}
-.sidebar input[type="file"], .sidebar select, .sidebar input[type="button"], .sidebar button {background:#374151;color:#fff;border:none;border-radius:.5em;padding:.55em 1em;margin-bottom:.5em;font-size:1em;cursor:pointer;transition:background .2s;}
+.sidebar input[type="file"], .sidebar select, .sidebar input[type="button"], .sidebar button {width:100%;background:#374151;color:#fff;border:none;border-radius:.5em;padding:.55em 1em;margin-bottom:.5em;font-size:1em;cursor:pointer;transition:background .2s;text-align:left;}
 .sidebar input[type="file"]:hover, .sidebar input[type="button"]:hover, .sidebar button:hover, .sidebar select:hover {background:#4b5563;}
-.track-panel {background:#232b38;border-radius:.7em;padding:.8em .8em .5em .8em;margin-bottom:.9em;}
-.track-panel label {font-weight:600;font-size:1.02em;display:block;margin-bottom:.4em;}
-.track-panel .track-date-list {margin-bottom:.8em;}
-.track-panel .date-item {margin-right:1em;margin-bottom:.3em;display:inline-block;}
-.track-panel .track-toggle-all {margin-bottom:.7em;}
-.track-panel .track-toggle-all input[type=checkbox] {transform:scale(1.2);margin-right:.25em;}
-.track-panel .track-toggle-all {font-weight:700;}
+.sidebar button:disabled { background: #4b5563; cursor: not-allowed; }
 @media (max-width:800px){.sidebar{width:84vw;}}
-.track-marker {background:#4f46e5;color:#fff;border-radius:.5em;font-size:.95em;padding:.2em .6em;border:2px solid #fff;font-weight:700;}
-.arrowhead {stroke:#4338ca !important;}
+/* Marker Styles */
+.number-marker, .icon-marker {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    color: white;
+    font-weight: bold;
+    font-size: 12px;
+    border: 2px solid white;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+.icon-marker { font-size: 14px; }
+/* Modal Styles */
+.modal {position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:200;display:flex;align-items:center;justify-content:center;opacity:1;transition:opacity .3s;}
+.modal.hide {opacity:0;pointer-events:none;}
+.modal-content {background:#374151;padding:2em;border-radius:1em;width:80%;max-width:600px;max-height:80vh;overflow-y:auto;position:relative;box-shadow:0 10px 30px #0005;}
+.modal-close {position:absolute;top:1em;right:1em;background:transparent;border:none;color:#9ca3af;font-size:1.5rem;cursor:pointer;}
+.modal-close:hover {color:#fff;}
+/* AI Modal Styles */
+.modal-content input, .modal-content textarea, .modal-content button {
+    width: 100%; background: #232b38; color: #fff; border: 1px solid #4b5563; border-radius: .5em;
+    padding: .55em 1em; margin-bottom: .5em; font-size: 1em; transition: background .2s;
+}
+.modal-content button { cursor: pointer; }
+.modal-content button:hover { background: #4b5563; }
+.loader { border: 4px solid rgba(249, 250, 251, 0.2); border-top: 4px solid #f9fafb; border-radius: 50%; width: 1.5rem; height: 1.5rem; animation: spin 1s linear infinite; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+/* Floating Panel Styles */
+.floating-panel {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 100;
+    width: 300px;
+    background: #232b38e0;
+    backdrop-filter: blur(5px);
+    border-radius: .7em;
+    box-shadow: 0 2px 10px #0005;
+    transition: all .3s;
+}
+.floating-panel.collapsed .panel-content {
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    opacity: 0;
+}
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: .8em 1em;
+    cursor: pointer;
+    border-bottom: 1px solid #4b5563;
+}
+.panel-header h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+    color: #f3f4f6;
+}
+.panel-toggle-btn {
+    background: none;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    transition: transform .3s;
+}
+.floating-panel.collapsed .panel-toggle-btn {
+    transform: rotate(-180deg);
+}
+.panel-content {
+    padding: 1em;
+    max-height: 300px;
+    overflow-y: auto;
+    transition: all .3s;
+}
+.dashboard-list { max-height: 120px; overflow-y: auto; font-size: 0.9em; }
+.dashboard-list-item { padding: 0.25rem 0.5rem; border-radius: 0.25rem; }
+.dashboard-list-item:hover { background-color: #4b5563; }
+.clickable-coord { color: #60a5fa; cursor: pointer; text-decoration: underline; }
+.track-date-list .date-item {display:flex;align-items:center;margin-bottom:.3em;}
 </style>
 </head>
 <body>
@@ -54,18 +130,42 @@ html,body {height:100%;margin:0;font-family: 'Inter', 'Noto Sans TC', sans-serif
             <div id="uploadStatus" style="color:#fbbf24;font-size:.95em;"></div>
             <div id="fieldSelector"></div>
         </section>
-        <section id="trackControlPanel" style="display:none;">
-            <h3>軌跡圖層控制</h3>
-            <div class="track-panel" id="trackPanel"></div>
-        </section>
         <hr class="my-3 border-gray-700">
-        <button onclick="showModal('preview')"><i class="fa fa-table"></i> 原始資料預覽</button>
-        <button onclick="showModal('analysis')"><i class="fa fa-brain"></i> 軌跡智慧分析</button>
-        <button id="btnGoogleRoute" style="display:none;margin-top:.9em;"><i class="fa fa-location-arrow"></i> 預測行車路線 (Google Maps)</button>
+        <div id="actionsPanel" style="display:none;">
+            <button id="btnDownloadMap"><i class="fa fa-camera"></i> 下載軌跡圖檔</button>
+            <button id="btnGoogleRoute"><i class="fa fa-location-arrow"></i> 預測行車路線</button>
+            <hr class="my-3 border-gray-700">
+            <button id="btnAiAnalysis"><i class="fa fa-brain"></i> 軌跡智慧分析</button>
+        </div>
     </div>
 </aside>
 
-<!-- 彈窗 Modal -->
+<!-- 右側懸浮視窗 -->
+<div id="layerControlPanel" class="floating-panel hidden">
+    <div class="panel-header">
+        <h3><i class="fa fa-layer-group"></i> 軌跡圖層控制</h3>
+        <button class="panel-toggle-btn"><i class="fa fa-chevron-up"></i></button>
+    </div>
+    <div class="panel-content">
+        <button id="toggleAllTracksBtn" style="width:100%;background:#374151;color:#fff;border:none;border-radius:.5em;padding:.55em 1em;margin-bottom:.5em;font-size:1em;cursor:pointer;">顯示/隱藏所有</button>
+        <div class="track-date-list"></div>
+    </div>
+</div>
+
+<div id="dashboardPanel" class="floating-panel hidden" style="top: 220px;">
+     <div class="panel-header">
+        <h3><i class="fa fa-tachometer-alt"></i> 偵查儀表板</h3>
+        <button class="panel-toggle-btn"><i class="fa fa-chevron-up"></i></button>
+    </div>
+    <div class="panel-content">
+        <div><h4 class="font-semibold mb-2 text-gray-300">最常經過點位</h4><div id="hot-zone-display" class="dashboard-list"></div></div>
+        <div class="mt-4"><h4 class="font-semibold mb-2 text-gray-300">每日起始點</h4><div id="daily-start-display" class="dashboard-list"></div></div>
+        <div class="mt-4"><h4 class="font-semibold mb-2 text-gray-300">每日結束點</h4><div id="daily-end-display" class="dashboard-list"></div></div>
+    </div>
+</div>
+
+
+<!-- AI分析彈窗 Modal -->
 <div id="modal" class="modal hide">
     <div class="modal-content" id="modal-content">
         <button class="modal-close" onclick="hideModal()"><i class="fa fa-times"></i></button>
@@ -73,330 +173,490 @@ html,body {height:100%;margin:0;font-family: 'Inter', 'Noto Sans TC', sans-serif
 </div>
 
 <script>
-// Leaflet 地圖初始化（台灣）
+// --- 全域變數 ---
 const map = L.map('map').setView([23.8, 121], 7.5);
+let parsedData = [];
+let allHeaders = [];
+let visibleLayers = null;
+let layersByDate = {};
+let pointsByDate = {};
+let processedPointsForAI = [];
+let hotzoneCircle = null;
+const trackColorSet = ['#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'];
+
+// --- DOM 元素 ---
+const sidebar = document.getElementById('sidebar');
+const fileInput = document.getElementById('fileUpload');
+const statusDiv = document.getElementById('uploadStatus');
+const fieldSelectorDiv = document.getElementById('fieldSelector');
+const actionsPanel = document.getElementById('actionsPanel');
+const layerControlPanel = document.getElementById('layerControlPanel');
+const dashboardPanel = document.getElementById('dashboardPanel');
+const hotZoneDisplay = document.getElementById('hot-zone-display');
+const dailyStartDisplay = document.getElementById('daily-start-display');
+const dailyEndDisplay = document.getElementById('daily-end-display');
+
+
+// --- 初始化 ---
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap',
+    attribution: '&copy; OpenStreetMap contributors',
     maxZoom: 19
 }).addTo(map);
 
-// 側邊選單收合
-const sidebar = document.getElementById('sidebar');
-document.getElementById('sidebarToggle').onclick = function(e) {
+document.getElementById('sidebarToggle').onclick = (e) => {
     sidebar.classList.toggle('collapsed');
     e.stopPropagation();
 };
 
-// 彈窗
-function showModal(type) {
-    var modal = document.getElementById('modal');
-    var content = document.getElementById('modal-content');
-    let html = '';
-    if (type === 'preview') {
-        html = `<h2>原始資料預覽</h2><div id="previewContent"></div>`;
-    }
-    if (type === 'analysis') {
-        html = `<h2>軌跡智慧分析</h2><div>此處顯示分析結果<br><br><em>（功能待實作）</em></div>`;
-    }
-    content.innerHTML = html + content.innerHTML.match(/<button class="modal-close"/);
-    modal.classList.remove('hide');
-}
-function hideModal() {
-    document.getElementById('modal').classList.add('hide');
-}
+// --- 事件監聽 ---
+fileInput.addEventListener('change', handleFile);
+document.getElementById('btnDownloadMap').addEventListener('click', downloadMapImage);
+document.getElementById('btnGoogleRoute').addEventListener('click', openGoogleMapsRoute);
+document.getElementById('btnAiAnalysis').addEventListener('click', () => showModal('analysis'));
+document.getElementById('toggleAllTracksBtn').addEventListener('click', () => toggleAllTracks());
 
-// 資料變數
-let parsedRows = [];
-let parsedHeader = [];
-let timeCol = null, latCol = null, lngCol = null;
-let allTracks = {}; // date: [rows]
-let trackLayers = {}; // date: {poly, markers}
-let trackOrder = []; // 日期排序
-let trackColorSet = ['#4f46e5','#e11d48','#22d3ee','#fbbf24','#84cc16','#f472b6','#818cf8'];
-
-// 支援欄位自動偵測
-function autoDetectCols(header) {
-    let timeIdx = header.findIndex(h => /time|時間/i.test(h));
-    let latIdx = header.findIndex(h => /lat|latitude|y|緯度/i.test(h));
-    let lngIdx = header.findIndex(h => /lng|lon|longitude|x|經度/i.test(h));
-    return { time: timeIdx, lat: latIdx, lng: lngIdx };
-}
-
-// 檔案上傳與解析
-document.getElementById('fileUpload').addEventListener('change', function(e){
-    const file = e.target.files[0];
-    if (!file) return;
-    const ext = file.name.split('.').pop().toLowerCase();
-    const status = document.getElementById('uploadStatus');
-    status.textContent = '檔案上傳中...';
-    document.getElementById('fieldSelector').innerHTML = '';
-    document.getElementById('trackPanel').innerHTML = '';
-    document.getElementById('trackControlPanel').style.display = 'none';
-    document.getElementById('btnGoogleRoute').style.display = 'none';
-    // GPX
-    if (ext === 'gpx') {
-        const reader = new FileReader();
-        reader.onload = function(evt){
-            let geojson = null;
-            try {
-                const domparser = new DOMParser();
-                const xml = domparser.parseFromString(evt.target.result, "application/xml");
-                geojson = toGeoJSON.gpx(xml);
-            } catch (err) {
-                status.textContent = 'GPX解析失敗';
-                return;
-            }
-            let allpts = [];
-            geojson.features.forEach(f=>{
-                if (f.geometry.type === 'LineString') {
-                    f.geometry.coordinates.forEach((c,i)=>{
-                        let pt = Object.assign({}, f.properties);
-                        pt.lat = c[1]; pt.lng = c[0];
-                        if (f.properties.coordTimes && f.properties.coordTimes[i]) pt.time = f.properties.coordTimes[i];
-                        allpts.push(pt);
-                    });
-                }
-            });
-            parsedRows = allpts;
-            parsedHeader = Object.keys(allpts[0]);
-            showFieldSelector();
-            status.textContent = 'GPX檔案已解析，請指定欄位';
-        };
-        reader.readAsText(file);
-        return;
-    }
-    // CSV/XLSX/XLS
-    if (['csv','xlsx','xls'].includes(ext)) {
-        const reader = new FileReader();
-        reader.onload = function(evt){
-            let data = evt.target.result;
-            let workbook, sheet, rows = [];
-            try {
-                if (ext === 'csv') {
-                    workbook = XLSX.read(data, {type:'string'});
-                } else {
-                    workbook = XLSX.read(data, {type:'array'});
-                }
-                sheet = workbook.Sheets[workbook.SheetNames[0]];
-                rows = XLSX.utils.sheet_to_json(sheet, {header:1});
-            } catch (err) {
-                status.textContent = '檔案解析失敗';
-                return;
-            }
-            parsedHeader = rows[0].map(h=>h.toString());
-            parsedRows = [];
-            for(let i=1;i<rows.length;i++){
-                let obj={};
-                rows[0].forEach((h,idx)=>{
-                    obj[h]=rows[i][idx];
-                });
-                parsedRows.push(obj);
-            }
-            showFieldSelector();
-            status.textContent = '資料已解析，請指定欄位';
-        };
-        if (ext==='csv') reader.readAsText(file);
-        else reader.readAsArrayBuffer(file);
-        return;
-    }
-    // JSON（假設是GeoJSON）
-    if (ext === 'json') {
-        const reader = new FileReader();
-        reader.onload = function(evt){
-            let geojson;
-            try {
-                geojson = JSON.parse(evt.target.result);
-            } catch (err) {
-                status.textContent = 'JSON解析失敗';
-                return;
-            }
-            let allpts = [];
-            geojson.features.forEach(f=>{
-                if (f.geometry.type === 'LineString') {
-                    f.geometry.coordinates.forEach((c,i)=>{
-                        let pt = Object.assign({}, f.properties);
-                        pt.lat = c[1]; pt.lng = c[0];
-                        if (f.properties.coordTimes && f.properties.coordTimes[i]) pt.time = f.properties.coordTimes[i];
-                        allpts.push(pt);
-                    });
-                }
-            });
-            parsedRows = allpts;
-            parsedHeader = Object.keys(allpts[0]);
-            showFieldSelector();
-            status.textContent = 'GeoJSON檔案已解析，請指定欄位';
-        };
-        reader.readAsText(file);
-        return;
-    }
-    status.textContent = '不支援的檔案類型';
+// Floating Panel Collapse Logic
+document.querySelectorAll('.panel-header').forEach(header => {
+    header.addEventListener('click', () => {
+        header.parentElement.classList.toggle('collapsed');
+    });
 });
 
-// 欄位選擇介面
-function showFieldSelector() {
-    const selDiv = document.getElementById('fieldSelector');
-    selDiv.innerHTML = '';
-    let autodetect = autoDetectCols(parsedHeader);
-    let html = `
-        <label>指定「時間」欄位：</label>
-        <select id="colTime">${parsedHeader.map((h,i)=>`<option value="${i}"${autodetect.time===i?' selected':''}>${h}</option>`).join('')}</select>
-        <label>指定「緯度」欄位：</label>
-        <select id="colLat">${parsedHeader.map((h,i)=>`<option value="${i}"${autodetect.lat===i?' selected':''}>${h}</option>`).join('')}</select>
-        <label>指定「經度」欄位：</label>
-        <select id="colLng">${parsedHeader.map((h,i)=>`<option value="${i}"${autodetect.lng===i?' selected':''}>${h}</option>`).join('')}</select>
-        <button onclick="drawTracks()">繪製軌跡</button>
-    `;
-    selDiv.innerHTML = html;
+
+// --- 核心功能 ---
+
+function handleFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    resetUI();
+    statusDiv.textContent = '檔案上傳中...';
+    
+    const reader = new FileReader();
+    const ext = file.name.split('.').pop().toLowerCase();
+
+    reader.onload = (e) => {
+        try {
+            const data = e.target.result;
+            if (ext === 'gpx') parseGpx(data);
+            else if (ext === 'json') parseJson(data);
+            else if (['csv', 'xlsx', 'xls'].includes(ext)) parseSheet(data, ext);
+            else throw new Error('不支援的檔案類型');
+            
+            if (parsedData.length > 0) {
+                populateColumnSelectors();
+                statusDiv.textContent = '解析完成，請指定欄位。';
+            } else { throw new Error('檔案為空或格式不符。'); }
+        } catch (err) { statusDiv.textContent = `檔案解析失敗: ${err.message}`; }
+    };
+    reader.onerror = () => statusDiv.textContent = '無法讀取檔案。';
+    
+    if (['gpx', 'json', 'csv'].includes(ext)) reader.readAsText(file);
+    else reader.readAsArrayBuffer(file);
 }
 
-// 分組、繪製主控
-function drawTracks() {
-    // 取得指定的欄位
-    let ct = document.getElementById('colTime').value;
-    let clat = document.getElementById('colLat').value;
-    let clng = document.getElementById('colLng').value;
-    timeCol = parsedHeader[ct];
-    latCol = parsedHeader[clat];
-    lngCol = parsedHeader[clng];
-    // 依日期分組（只取年月日部分）
-    allTracks = {}; trackOrder = [];
-    parsedRows.forEach((row, i)=>{
-        let t = row[timeCol];
-        let d = t ? (t.toString().slice(0,10)) : '未知日期';
-        if (!allTracks[d]) { allTracks[d]=[]; trackOrder.push(d);}
-        allTracks[d].push(row);
-    });
-    // 依時間排序，每天資料編號
-    trackOrder.forEach(date => {
-      let rows = allTracks[date];
-      rows.sort((a, b) => new Date(a[timeCol]) - new Date(b[timeCol]));
-      rows.forEach((row, idx) => row._track_idx = idx + 1); //每日順序編號
-    });
-    // 清除所有原本軌跡
-    Object.values(trackLayers).forEach(obj=>{
-        if(obj.poly) map.removeLayer(obj.poly);
-        if(obj.markers) obj.markers.forEach(m=>map.removeLayer(m));
-    });
-    trackLayers = {};
-    // 繪製每日期的軌跡
-    trackOrder.forEach((d,idx)=>{
-        let color = trackColorSet[idx%trackColorSet.length];
-        let rows = allTracks[d].filter(pt=>!isNaN(pt[latCol])&&!isNaN(pt[lngCol]));
-        if(rows.length<2) return;
-        let latlngs = rows.map(pt=>[pt[latCol],pt[lngCol]]);
-        let poly = L.polyline(latlngs, {color:color,weight:5,opacity:0.87}).addTo(map);
-        poly.arrowheads({size:'10px',yawn:50,frequency:'endonly',color:color});
-        let markers = rows.map((pt,i)=>{
-            let marker = L.marker([pt[latCol],pt[lngCol]],{
-                icon:L.divIcon({
-                    className:'track-marker',
-                    html:`${pt._track_idx}`,
-                    iconSize:[30,30]
-                })
-            }).addTo(map);
-            marker.bindPopup(`<div style="font-size:.97em;"><b>編號:</b> ${pt._track_idx}<br>${
-                parsedHeader.map(h=>`<b>${h}:</b> ${pt[h]??''}`).join('<br>')
-            }</div>`);
-            marker.on('mouseover',function(){marker.openPopup();});
-            marker.on('mouseout',function(){marker.closePopup();});
-            return marker;
-        });
-        trackLayers[d] = {poly,markers};
-    });
-    // 更新控制面板
-    updateTrackPanel();
-    document.getElementById('btnGoogleRoute').style.display = '';
-    document.getElementById('trackControlPanel').style.display = '';
-    let preview = document.getElementById('previewContent');
-    if (preview) {
-        let first = allTracks[trackOrder[0]];
-        let html = '<table style="width:100%;font-size:.95em;"><tr><th>#</th>'+parsedHeader.map(h=>`<th>${h}</th>`).join('')+'</tr>';
-        first.slice(0,20).forEach((row,i)=>{
-            html += `<tr><td>${row._track_idx}</td>`+parsedHeader.map(h=>`<td>${row[h]??''}</td>`).join('')+'</tr>';
-        });
-        if(first.length>20) html += `<tr><td colspan="${parsedHeader.length+1}">...共${first.length}筆</td></tr>`;
-        html += '</table>';
-        preview.innerHTML = html;
-    }
-    fitTracks();
+function resetUI() {
+    statusDiv.textContent = '';
+    fieldSelectorDiv.innerHTML = '';
+    actionsPanel.style.display = 'none';
+    layerControlPanel.classList.add('hidden');
+    dashboardPanel.classList.add('hidden');
+    if (visibleLayers) visibleLayers.clearLayers();
+    if (hotzoneCircle) map.removeLayer(hotzoneCircle);
+    parsedData = []; allHeaders = []; layersByDate = {}; pointsByDate = {}; processedPointsForAI = [];
 }
 
-// 軌跡圖層控制面板
-function updateTrackPanel(){
-    const panel = document.getElementById('trackPanel');
-    let html = `<div class="track-toggle-all">
-        <input type="checkbox" id="chkAllTracks" checked onchange="toggleAllTracks(this)">
-        <label for="chkAllTracks">顯示/隱藏所有軌跡</label>
-    </div><div class="track-date-list">`;
-    trackOrder.forEach((d,idx)=>{
-        html += `<span class="date-item">
-            <input type="checkbox" id="chkTrack${idx}" checked onchange="toggleTrack('${d}',this)">
-            <label for="chkTrack${idx}" style="color:${trackColorSet[idx%trackColorSet.length]};">${d}</label>
-        </span>`;
-    });
-    html += `</div>`;
-    panel.innerHTML = html;
+function parseGpx(data) {
+    const dom = new DOMParser().parseFromString(data, "application/xml");
+    const geojson = toGeoJSON.gpx(dom);
+    parseJson(geojson);
 }
 
-// 全選/全不選
-function toggleAllTracks(cb){
-    trackOrder.forEach((d,idx)=>{
-        let el = document.getElementById('chkTrack'+idx);
-        el.checked = cb.checked;
-        toggleTrack(d,el);
-    });
-    fitTracks();
-}
-
-// 個別日期顯示/隱藏
-function toggleTrack(date,cb){
-    let obj = trackLayers[date];
-    if(!obj)return;
-    if(cb.checked){
-        map.addLayer(obj.poly);
-        obj.markers.forEach(m=>map.addLayer(m));
-    }else{
-        map.removeLayer(obj.poly);
-        obj.markers.forEach(m=>map.removeLayer(m));
-    }
-    fitTracks();
-}
-
-// 智慧視野
-function fitTracks(){
-    let bounds = null;
-    trackOrder.forEach((d,idx)=>{
-        let cb = document.getElementById('chkTrack'+idx);
-        if(cb && cb.checked && trackLayers[d]){
-            let b = trackLayers[d].poly.getBounds();
-            bounds = bounds ? bounds.extend(b) : b;
-        }
-    });
-    if(bounds) map.fitBounds(bounds,{padding:[24,24]});
-}
-
-// Google Maps 路線規劃
-document.getElementById('btnGoogleRoute').onclick = function(){
-    let pts=[];
-    trackOrder.forEach((d,idx)=>{
-        let cb = document.getElementById('chkTrack'+idx);
-        if(cb && cb.checked && allTracks[d]){
-            allTracks[d].forEach(pt=>{
-                let lat = pt[latCol], lng = pt[lngCol];
-                if(!isNaN(lat)&&!isNaN(lng)){
-                    pts.push({lat:lat,lng:lng});
-                }
+function parseJson(data) {
+    const geojson = typeof data === 'string' ? JSON.parse(data) : data;
+    let allpts = [];
+    geojson.features.forEach(f => {
+        if (f.geometry && f.geometry.type === 'LineString') {
+            f.geometry.coordinates.forEach((c, i) => {
+                let pt = { ...f.properties };
+                pt.lon = c[0]; pt.lat = c[1];
+                if (f.properties.coordTimes && f.properties.coordTimes[i]) pt.time = f.properties.coordTimes[i];
+                allpts.push(pt);
             });
         }
     });
-    if(pts.length<2){alert('請先選擇至少兩個點！');return;}
-    let origin = `${pts[0].lat},${pts[0].lng}`;
-    let destination = `${pts[pts.length-1].lat},${pts[pts.length-1].lng}`;
-    let waypoints = pts.slice(1,-1).map(pt=>`${pt.lat},${pt.lng}`).join('|');
-    let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}`;
-    if(waypoints) url += `&waypoints=${waypoints}`;
-    window.open(url,'_blank');
-};
+    parsedData = allpts;
+    allHeaders = parsedData.length > 0 ? Object.keys(parsedData[0]) : [];
+}
+
+function parseSheet(data, ext) {
+    const workbook = ext === 'csv' ? XLSX.read(data, {type:'string'}) : XLSX.read(data, {type:'array'});
+    const sheetName = workbook.SheetNames[0];
+    parsedData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+    allHeaders = parsedData.length > 0 ? Object.keys(parsedData[0]) : [];
+}
+
+function populateColumnSelectors() {
+    let timeIdx = allHeaders.findIndex(h => /time|時間/i.test(h));
+    let latIdx = allHeaders.findIndex(h => /lat|latitude|y|緯度/i.test(h));
+    let lngIdx = allHeaders.findIndex(h => /lng|lon|longitude|x|經度/i.test(h));
+    
+    const createSelect = (id, selectedIndex) => 
+        `<select id="${id}">${allHeaders.map((h, i) => `<option value="${h}" ${i === selectedIndex ? 'selected' : ''}>${h}</option>`).join('')}</select>`;
+
+    fieldSelectorDiv.innerHTML = `
+        <label>指定「時間」欄位：</label>${createSelect('colTime', timeIdx)}
+        <label>指定「緯度」欄位：</label>${createSelect('colLat', latIdx)}
+        <label>指定「經度」欄位：</label>${createSelect('colLng', lngIdx)}
+        <button onclick="drawTracks()"><i class="fa fa-map-marked-alt"></i> 繪製軌跡</button>
+    `;
+}
+
+function drawTracks() {
+    statusDiv.textContent = '正在繪製軌跡...';
+    setTimeout(() => {
+        try {
+            const latCol = document.getElementById('colLat').value;
+            const lonCol = document.getElementById('colLng').value;
+            const timeCol = document.getElementById('colTime').value;
+
+            if (visibleLayers) visibleLayers.clearLayers();
+            layersByDate = {}; pointsByDate = {};
+
+            processedPointsForAI = parsedData.map(row => {
+                const lat = parseFloat(row[latCol]);
+                const lon = parseFloat(row[lonCol]);
+                const time = parseDateTime(row[timeCol]);
+                if (isNaN(lat) || isNaN(lon) || !time) return null;
+                return { ...row, lat, lon, time };
+            }).filter(p => p !== null).sort((a, b) => a.time - b.time);
+
+            if (processedPointsForAI.length === 0) throw new Error('找不到有效的經緯度或時間資料。');
+
+            processedPointsForAI.forEach(point => {
+                const date = formatDateToLocalYYYYMMDD(point.time);
+                if (!pointsByDate[date]) pointsByDate[date] = [];
+                pointsByDate[date].push(point);
+            });
+
+            const dates = Object.keys(pointsByDate).sort();
+            dates.forEach((date, dateIndex) => {
+                const dailyPoints = pointsByDate[date];
+                const color = trackColorSet[dateIndex % trackColorSet.length];
+                layersByDate[date] = L.featureGroup();
+
+                const latLngs = dailyPoints.map(p => [p.lat, p.lon]);
+                const polyline = L.polyline(latLngs, { color: color, weight: 4, opacity: 0.8 });
+                layersByDate[date].addLayer(polyline);
+
+                const decorator = L.polylineDecorator(polyline, {
+                    patterns: [{ offset: 25, repeat: 100, symbol: L.Symbol.arrowHead({ pixelSize: 12, pathOptions: { fillOpacity: 1, weight: 0, color: color } }) }]
+                });
+                layersByDate[date].addLayer(decorator);
+
+                dailyPoints.forEach((p, index) => {
+                    let markerHtml, markerClass, markerColor = color; 
+
+                    if (index === 0) {
+                        markerClass = 'icon-marker';
+                        markerColor = '#f59e0b'; // Yellow for start
+                        markerHtml = `<div class="${markerClass}" style="background-color: ${markerColor};"><i class="fa fa-sun"></i></div>`;
+                    } else if (index === dailyPoints.length - 1) {
+                        markerClass = 'icon-marker';
+                        markerColor = '#6b7280'; // Grey for end
+                        markerHtml = `<div class="${markerClass}" style="background-color: ${markerColor};"><i class="fa fa-bed"></i></div>`;
+                    } else {
+                        markerClass = 'number-marker';
+                        markerHtml = `<div class="${markerClass}" style="background-color: ${color};">${index + 1}</div>`;
+                    }
+
+                    const marker = L.marker([p.lat, p.lon], {
+                        icon: L.divIcon({ 
+                            className: '', html: markerHtml, 
+                            iconSize: [28, 28], iconAnchor: [14, 14] 
+                        })
+                    });
+                    let tooltipContent = Object.keys(p).map(key => `<b>${key}:</b> ${p[key]}`).join('<br>');
+                    marker.bindTooltip(`<div style="font-family: sans-serif; max-width: 250px; max-height: 200px; overflow-y: auto; word-wrap: break-word;">${tooltipContent}</div>`);
+                    layersByDate[date].addLayer(marker);
+                });
+            });
+
+            updateTrackPanel();
+            updateDashboard();
+            updateVisibleLayers();
+            statusDiv.textContent = `成功繪製 ${dates.length} 天的軌跡！`;
+            actionsPanel.style.display = 'block';
+            layerControlPanel.classList.remove('hidden');
+            dashboardPanel.classList.remove('hidden');
+
+        } catch (err) { statusDiv.textContent = `繪製失敗: ${err.message}`; }
+    }, 50);
+}
+
+function updateTrackPanel() {
+    const trackList = layerControlPanel.querySelector('.track-date-list');
+    const dates = Object.keys(pointsByDate).sort();
+    let html = '';
+    dates.forEach((date, idx) => {
+        html += `<div class="date-item">
+            <input type="checkbox" id="chkTrack${idx}" checked onchange="updateVisibleLayers()">
+            <label for="chkTrack${idx}" style="color:${trackColorSet[idx % trackColorSet.length]}; margin-left: 0.5rem;">${date}</label>
+        </div>`;
+    });
+    trackList.innerHTML = html;
+}
+
+function updateVisibleLayers() {
+    if (!visibleLayers) visibleLayers = L.featureGroup().addTo(map);
+    visibleLayers.clearLayers();
+    let hasVisibleLayer = false;
+    const dates = Object.keys(pointsByDate).sort();
+    dates.forEach((date, idx) => {
+        const cb = document.getElementById(`chkTrack${idx}`);
+        if (cb && cb.checked && layersByDate[date]) {
+            visibleLayers.addLayer(layersByDate[date]);
+            hasVisibleLayer = true;
+        }
+    });
+    if (hasVisibleLayer) {
+        map.fitBounds(visibleLayers.getBounds(), { padding: [50, 50], animate: true });
+    }
+}
+
+function toggleAllTracks() {
+    const dates = Object.keys(pointsByDate).sort();
+    const isAnyChecked = dates.some((_, idx) => document.getElementById(`chkTrack${idx}`).checked);
+    dates.forEach((_, idx) => {
+        const cb = document.getElementById(`chkTrack${idx}`);
+        if (cb) cb.checked = !isAnyChecked;
+    });
+    updateVisibleLayers();
+}
+
+// --- 分析與工具函式 ---
+
+function updateDashboard() {
+    let hotZoneHtml = '', dailyStartHtml = '', dailyEndHtml = '';
+    const CLUSTER_RADIUS_METERS = 50;
+
+    if (processedPointsForAI.length > 1) {
+        const clusters = clusterHotZones(processedPointsForAI, CLUSTER_RADIUS_METERS);
+        clusters.sort((a, b) => b.points.length - a.points.length);
+        const hotClusters = clusters.filter(c => c.points.length > 1 && c.points.length === clusters[0].points.length);
+        if (hotClusters.length > 0) {
+            hotZoneHtml = `<p class="text-xs text-gray-400 mb-2">聚合半徑: ${CLUSTER_RADIUS_METERS} 公尺</p>`;
+            hotClusters.forEach(cluster => {
+                const centerLat = cluster.center.lat.toFixed(6), centerLon = cluster.center.lon.toFixed(6);
+                hotZoneHtml += `<div class="dashboard-list-item"><span class="clickable-coord" data-lat="${centerLat}" data-lon="${centerLon}" data-radius="${CLUSTER_RADIUS_METERS}">中心: ${centerLat}, ${centerLon}</span> (共 ${cluster.points.length} 點)</div>`;
+            });
+            if (!hotzoneCircle) hotzoneCircle = L.circle([0,0], { radius: CLUSTER_RADIUS_METERS, color: '#f97316', fillColor: '#f97316', fillOpacity: 0.2 });
+        } else { hotZoneHtml = '<span class="text-gray-400">無明顯熱區</span>'; }
+    } else { hotZoneHtml = '<span class="text-gray-400">資料不足</span>'; }
+
+    Object.keys(pointsByDate).sort().forEach(date => {
+        const dailyPoints = pointsByDate[date];
+        if(dailyPoints.length === 0) return;
+        const firstPoint = dailyPoints[0], lastPoint = dailyPoints[dailyPoints.length - 1];
+        dailyStartHtml += `<div class="dashboard-list-item">${date}: <span class="clickable-coord" data-lat="${firstPoint.lat}" data-lon="${firstPoint.lon}">${firstPoint.time.toLocaleTimeString('zh-TW')}</span></div>`;
+        dailyEndHtml += `<div class="dashboard-list-item">${date}: <span class="clickable-coord" data-lat="${lastPoint.lat}" data-lon="${lastPoint.lon}">${lastPoint.time.toLocaleTimeString('zh-TW')}</span></div>`;
+    });
+    
+    hotZoneDisplay.innerHTML = hotZoneHtml;
+    dailyStartDisplay.innerHTML = dailyStartHtml;
+    dailyEndDisplay.innerHTML = dailyEndHtml;
+
+    dashboardPanel.querySelectorAll('.clickable-coord').forEach(el => {
+        el.addEventListener('click', (e) => {
+            const lat = parseFloat(e.target.dataset.lat), lon = parseFloat(e.target.dataset.lon);
+            map.flyTo([lat, lon], 16);
+            if (e.target.dataset.radius && hotzoneCircle) hotzoneCircle.setLatLng([lat, lon]).addTo(map);
+        });
+    });
+}
+
+async function downloadMapImage() {
+    const btn = document.getElementById('btnDownloadMap');
+    const originalHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<div class="loader" style="width:1rem;height:1rem;display:inline-block;margin-right:0.5rem;"></div>處理中';
+    try {
+        const mapElement = document.getElementById('map');
+        mapElement.querySelectorAll('.leaflet-control-container, .floating-panel').forEach(c => c.style.visibility = 'hidden');
+        const canvas = await html2canvas(mapElement, { useCORS: true, logging: false, backgroundColor: '#1f2937' });
+        mapElement.querySelectorAll('.leaflet-control-container, .floating-panel').forEach(c => c.style.visibility = 'visible');
+        const link = document.createElement('a');
+        link.download = `trajectory_map_${new Date().toISOString().slice(0,10)}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    } catch (err) { showModal('alert', { message: `產生圖檔失敗: ${err.message}` }); }
+    finally {
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+    }
+}
+
+function openGoogleMapsRoute() {
+    const visiblePoints = Object.entries(pointsByDate)
+        .filter(([date, _]) => {
+            const idx = Object.keys(pointsByDate).sort().indexOf(date);
+            const cb = document.getElementById(`chkTrack${idx}`);
+            return cb && cb.checked;
+        })
+        .flatMap(([_, points]) => points)
+        .sort((a,b) => a.time - b.time);
+
+    if (visiblePoints.length < 2) { 
+        showModal('alert', { message: '可見軌跡的點位不足2個，無法規劃。' });
+        return; 
+    }
+    
+    const origin = visiblePoints[0];
+    const destination = visiblePoints[visiblePoints.length - 1];
+    let waypoints = '';
+    if (visiblePoints.length > 2) {
+        const waypointsData = visiblePoints.length > 25 ?
+            visiblePoints.slice(1, -1).filter((_, i) => i % Math.ceil(visiblePoints.length / 23) === 0) :
+            visiblePoints.slice(1, -1);
+        waypoints = waypointsData.map(p => `${p.lat},${p.lon}`).join('|');
+    }
+    const url = `https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lon}&destination=${destination.lat},${destination.lon}&waypoints=${waypoints}&travelmode=driving`;
+    window.open(url, '_blank');
+}
+
+async function handleAiAnalysis() {
+    const submitBtn = document.getElementById('ai-submit-btn');
+    const outputArea = document.getElementById('ai-output');
+    const originalHTML = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<div class="loader mx-auto"></div>';
+    outputArea.value = "AI 正在分析中...";
+    try {
+        if (processedPointsForAI.length === 0) throw new Error("沒有可供分析的軌跡資料。");
+        const userPrompt = document.getElementById('custom-prompt-input').value.trim();
+        if (!userPrompt) throw new Error("請輸入分析指令。");
+
+        const dataString = processedPointsForAI.map(p => JSON.stringify(p)).join('\n');
+        const prompt = `你是一位專業的數據分析師。請根據以下 JSON 格式的軌跡數據，用繁體中文回答「使用者的問題」。\n\n【軌跡數據】:\n${dataString}\n\n【使用者的問題】:\n${userPrompt}\n\n【你的分析】:`;
+        
+        let apiKey = localStorage.getItem('gemini_api_key_trajectory') || "";
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+        const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+        const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        if (!response.ok) throw new Error(`API 請求失敗 (狀態碼: ${response.status})。請檢查您的 API 金鑰權限。`);
+        const result = await response.json();
+        if (result.candidates && result.candidates.length > 0) outputArea.value = result.candidates[0].content.parts[0].text;
+        else throw new Error("從 API 收到的回應無效或為空。");
+
+    } catch (err) { outputArea.value = `分析失敗: ${err.message}`; }
+    finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalHTML;
+    }
+}
+
+// --- 輔助函式 ---
+
+function showModal(type, data) {
+    const modal = document.getElementById('modal');
+    const content = document.getElementById('modal-content');
+    let html = '';
+    const closeButtonHtml = `<button class="modal-close" onclick="hideModal()"><i class="fa fa-times"></i></button>`;
+
+    if (type === 'analysis') {
+        html = `<h2><i class="fa fa-brain"></i> 軌跡智慧分析</h2>
+                <p class="text-gray-400 text-sm my-3">若內建金鑰權限不足，請提供您自己的 Google AI API 金鑰。</p>
+                <div class="flex items-center gap-2 mb-3">
+                    <input type="password" id="api-key-input" placeholder="貼上您的 API 金鑰">
+                    <button id="save-api-key-btn" style="width:auto;"><i class="fa fa-save"></i></button>
+                </div>
+                <textarea id="custom-prompt-input" rows="3" placeholder="例如：請找出所有停留超過10分鐘的地點。"></textarea>
+                <button id="ai-submit-btn"><i class="fa fa-paper-plane mr-2"></i>送出分析</button>
+                <textarea id="ai-output" rows="6" placeholder="AI 分析結果將顯示於此..." readonly></textarea>`;
+    } else if (type === 'alert') {
+        html = `<h2>提示</h2><p class="my-4">${data.message}</p>`;
+    }
+    content.innerHTML = closeButtonHtml + html;
+    modal.classList.remove('hide');
+
+    if (type === 'analysis') {
+        document.getElementById('save-api-key-btn').onclick = () => {
+            const apiKey = document.getElementById('api-key-input').value.trim();
+            localStorage.setItem('gemini_api_key_trajectory', apiKey);
+            alert(apiKey ? 'API 金鑰已儲存' : 'API 金鑰已清除');
+        };
+        const savedApiKey = localStorage.getItem('gemini_api_key_trajectory');
+        if (savedApiKey) document.getElementById('api-key-input').value = savedApiKey;
+        document.getElementById('ai-submit-btn').onclick = handleAiAnalysis;
+    }
+}
+
+function hideModal() { document.getElementById('modal').classList.add('hide'); }
+
+function formatDateToLocalYYYYMMDD(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function parseDateTime(dateStr) {
+    if (dateStr === null || dateStr === undefined) return null;
+    const dateStrClean = String(dateStr).trim();
+    if (!isNaN(dateStrClean) && Number(dateStrClean) > 10000 && !dateStrClean.includes('-') && !dateStrClean.includes('/')) {
+        return excelSerialDateToJSDate(Number(dateStrClean));
+    }
+    const rocRegex = /^(\d{2,3})[\/-]?(\d{1,2})[\/-]?(\d{1,2})/;
+    const match = dateStrClean.match(rocRegex);
+    if (match && parseInt(match[1], 10) < 200) {
+        try {
+            const gregorianYear = parseInt(match[1], 10) + 1911;
+            const timePart = dateStrClean.substring(match[0].length).trim();
+            const standardDateStr = `${gregorianYear}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')} ${timePart}`;
+            const date = new Date(standardDateStr);
+            if (!isNaN(date.getTime())) return date;
+        } catch (e) { /* ignore */ }
+    }
+    const date = new Date(dateStrClean);
+    return !isNaN(date.getTime()) ? date : null;
+}
+function excelSerialDateToJSDate(serial) {
+    const excelEpoch = new Date(1899, 11, 30);
+    return new Date(excelEpoch.getTime() + serial * 24 * 60 * 60 * 1000);
+}
+function clusterHotZones(points, radiusInMeters) {
+    const clusters = [];
+    points.forEach(point => {
+        let foundCluster = false;
+        for (const cluster of clusters) {
+            if (calculateDistance(point.lat, point.lon, cluster.center.lat, cluster.center.lon) <= radiusInMeters) {
+                cluster.points.push(point);
+                const totalLat = cluster.points.reduce((sum, p) => sum + p.lat, 0);
+                const totalLon = cluster.points.reduce((sum, p) => sum + p.lon, 0);
+                cluster.center = { lat: totalLat / cluster.points.length, lon: totalLon / cluster.points.length };
+                foundCluster = true;
+                break;
+            }
+        }
+        if (!foundCluster) {
+            clusters.push({ center: { lat: point.lat, lon: point.lon }, points: [point] });
+        }
+    });
+    return clusters;
+}
+function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371e3; // metres
+    const phi1 = lat1 * Math.PI/180; // φ, λ in radians
+    const phi2 = lat2 * Math.PI/180;
+    const deltaPhi = (lat2-lat1) * Math.PI/180;
+    const deltaLambda = (lon2-lon1) * Math.PI/180;
+
+    const a = Math.sin(deltaPhi/2) * Math.sin(deltaPhi/2) +
+              Math.cos(phi1) * Math.cos(phi2) *
+              Math.sin(deltaLambda/2) * Math.sin(deltaLambda/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+    return R * c; // in metres
+}
 </script>
 </body>
 </html>
