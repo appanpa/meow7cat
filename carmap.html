@@ -4,11 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
-    <title>車行軌跡視覺化</title>
+    <title>車軌地圖工具箱</title>
     <link rel="icon" href="https://cdn.jsdelivr.net/gh/appanpa/meow7cat/favicon.ico">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <!-- GPX parser -->
+    <script src="https://unpkg.com/togeojson@0.16.0/dist/togeojson.js"></script>
+    <!-- SheetJS for csv/xlsx/xls -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
@@ -26,7 +30,6 @@
             width: 100vw;
             height: 100vh;
         }
-        /* 側邊選單 */
         .sidebar {
             position: fixed;
             left: 0; top: 0; bottom: 0;
@@ -34,13 +37,12 @@
             background: #232b38;
             border-right: 1px solid #4b5563;
             z-index: 100;
-            transition: transform 0.3s;
+            transition: transform 0.3s, width 0.3s;
             box-shadow: 2px 0 28px #0002;
             display: flex;
             flex-direction: column;
         }
         .sidebar.collapsed {
-            transform: translateX(-260px);
             width: 60px;
         }
         .sidebar-toggle {
@@ -62,9 +64,11 @@
             padding: 2.2em 1.2em 1.2em 1.2em;
             overflow-y: auto;
             height: 100%;
+            transition: opacity 0.3s;
         }
         .sidebar.collapsed .sidebar-content {
-            display: none;
+            opacity: 0;
+            pointer-events: none;
         }
         .sidebar-header {
             font-size: 1.6em;
@@ -97,7 +101,6 @@
         .sidebar input[type="file"]:hover, .sidebar input[type="button"]:hover, .sidebar button:hover {
             background: #4b5563;
         }
-        /* 懸浮工具 */
         .floating {
             position: absolute;
             z-index: 120;
@@ -131,7 +134,6 @@
             .sidebar { width: 84vw; }
             .floating-tools { left: 64px; }
         }
-        /* Modal */
         .modal {
             position: fixed;
             left:0; top:0; right:0; bottom:0;
@@ -166,20 +168,26 @@
             transition: background .2s;
         }
         .modal-close:hover { background: #4338ca;}
+        .track-label {
+            background: #4f46e5;
+            color: #fff;
+            border-radius: .5em;
+            font-size: .9em;
+            padding: .15em .55em;
+        }
     </style>
 </head>
 <body>
-<!-- 地圖主視窗 -->
 <div id="map"></div>
 
-<!-- 左側側邊選單 -->
 <aside id="sidebar" class="sidebar">
     <button class="sidebar-toggle" id="sidebarToggle" title="收合選單"><i class="fa fa-bars"></i></button>
     <div class="sidebar-content">
         <div class="sidebar-header">車軌地圖工具</div>
         <section>
             <h3>步驟一：檔案上傳</h3>
-            <input type="file" id="fileUpload" accept=".gpx,.csv,.json">
+            <input type="file" id="fileUpload" accept=".gpx,.csv,.xlsx,.xls,.json">
+            <div id="uploadStatus" style="color:#fbbf24;font-size:.95em;"></div>
         </section>
         <section>
             <h3>步驟二：資料處理</h3>
@@ -195,39 +203,31 @@
     </div>
 </aside>
 
-<!-- 懸浮式儀錶板 -->
 <div class="floating floating-dashboard" id="floatDashboard">
     <button class="float-toggle" onclick="toggleFloat('floatDashboard')"><i class="fa fa-tachometer-alt"></i> 偵查儀錶板</button>
     <div class="float-content">
         <div>速度：---</div>
         <div>距離：---</div>
         <div>時間：---</div>
-        <!-- 可自行擴充 -->
     </div>
 </div>
-<!-- 懸浮式塗層控制 -->
 <div class="floating floating-layer" id="floatLayer">
     <button class="float-toggle" onclick="toggleFloat('floatLayer')"><i class="fa fa-layer-group"></i> 軌跡塗層控制</button>
     <div class="float-content">
-        <label><input type="checkbox" checked> 顯示主軌跡</label><br>
+        <label><input type="checkbox" checked onchange="toggleTrackLayer(this)"> 顯示主軌跡</label><br>
         <label><input type="checkbox"> 顯示輔助圖層</label>
-        <!-- 可自行擴充 -->
     </div>
 </div>
-<!-- 懸浮式軌跡工具 -->
 <div class="floating floating-tools" id="floatTools">
     <button class="float-toggle" onclick="toggleFloat('floatTools')"><i class="fa fa-tools"></i> 軌跡工具</button>
     <div class="float-content">
         <button onclick="alert('測距功能待實作')">測距</button>
         <button onclick="alert('分段功能待實作')">分段</button>
-        <!-- 可自行擴充 -->
     </div>
 </div>
 
-<!-- 彈窗 Modal -->
 <div id="modal" class="modal hide">
     <div class="modal-content" id="modal-content">
-        <!-- 動態內容 -->
         <button class="modal-close" onclick="hideModal()"><i class="fa fa-times"></i></button>
     </div>
 </div>
@@ -242,8 +242,9 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 
 // 側邊選單收合
 const sidebar = document.getElementById('sidebar');
-document.getElementById('sidebarToggle').onclick = function() {
+document.getElementById('sidebarToggle').onclick = function(e) {
     sidebar.classList.toggle('collapsed');
+    e.stopPropagation();
 };
 
 // 懸浮元件收合切換
@@ -258,23 +259,158 @@ function showModal(type) {
     var content = document.getElementById('modal-content');
     let html = '';
     if (type === 'preview') {
-        html = `<h2>原始資料預覽</h2><div>此處顯示上傳檔案資料內容<br><br><em>（功能待實作）</em></div>`;
+        html = `<h2>原始資料預覽</h2><div id="previewContent">此處顯示上傳檔案資料內容<br><br><em>（功能待實作）</em></div>`;
     }
     if (type === 'analysis') {
         html = `<h2>軌跡智慧分析</h2><div>此處顯示分析結果<br><br><em>（功能待實作）</em></div>`;
     }
-    content.innerHTML = html + content.innerHTML.match(/<button class="modal-close"/); // 保留關閉鍵
+    content.innerHTML = html + content.innerHTML.match(/<button class="modal-close"/);
     modal.classList.remove('hide');
 }
 function hideModal() {
     document.getElementById('modal').classList.add('hide');
 }
 
-// 檔案上傳初步監聽（可擴充）
+// 軌跡圖層
+let trackLayer = null;
+function toggleTrackLayer(cb) {
+    if (cb.checked) {
+        if (trackLayer) map.addLayer(trackLayer);
+    } else {
+        if (trackLayer) map.removeLayer(trackLayer);
+    }
+}
+
+// 檔案上傳與解析
 document.getElementById('fileUpload').addEventListener('change', function(e){
-    alert('檔案已選取：' + (e.target.files[0] ? e.target.files[0].name : '未選取'));
-    // 實際解析檔案及繪圖需補充
+    const file = e.target.files[0];
+    if (!file) return;
+    const status = document.getElementById('uploadStatus');
+    status.textContent = '檔案上傳中...';
+
+    const ext = file.name.split('.').pop().toLowerCase();
+    // GPX
+    if (ext === 'gpx') {
+        const reader = new FileReader();
+        reader.onload = function(evt){
+            let geojson = null;
+            try {
+                const domparser = new DOMParser();
+                const xml = domparser.parseFromString(evt.target.result, "application/xml");
+                geojson = toGeoJSON.gpx(xml);
+            } catch (err) {
+                status.textContent = 'GPX解析失敗';
+                return;
+            }
+            drawTrackFromGeoJSON(geojson, file.name, status);
+        };
+        reader.readAsText(file);
+        return;
+    }
+    // CSV/XLSX/XLS
+    if (['csv','xlsx','xls'].includes(ext)) {
+        const reader = new FileReader();
+        reader.onload = function(evt){
+            let data = evt.target.result;
+            let workbook, sheet, rows = [];
+            try {
+                if (ext === 'csv') {
+                    workbook = XLSX.read(data, {type:'string'});
+                } else {
+                    workbook = XLSX.read(data, {type:'array'});
+                }
+                sheet = workbook.Sheets[workbook.SheetNames[0]];
+                rows = XLSX.utils.sheet_to_json(sheet, {header:1});
+            } catch (err) {
+                status.textContent = '檔案解析失敗';
+                return;
+            }
+            // 尋找經緯度欄位
+            let header = rows[0].map(h=>h.toString().toLowerCase());
+            let latIdx = header.findIndex(h=>(h==='lat'||h==='latitude'||h==='y'||h==='緯度'));
+            let lngIdx = header.findIndex(h=>(h==='lng'||h==='lon'||h==='longitude'||h==='x'||h==='經度'));
+            if (latIdx === -1 || lngIdx === -1) {
+                status.textContent = '找不到經緯度欄位（欄名需為 lat/lng 或 latitude/longitude 或 x/y 或 經度/緯度）';
+                return;
+            }
+            let coords = [];
+            for(let i=1;i<rows.length;i++){
+                let lat = parseFloat(rows[i][latIdx]);
+                let lng = parseFloat(rows[i][lngIdx]);
+                if(!isNaN(lat) && !isNaN(lng)) coords.push([lat,lng]);
+            }
+            if(coords.length<2){
+                status.textContent = '座標點不足';
+                return;
+            }
+            drawTrackFromLatLngs(coords, file.name, status);
+        };
+        if (ext==='csv') reader.readAsText(file);
+        else reader.readAsArrayBuffer(file);
+        return;
+    }
+    // JSON（假設是GeoJSON）
+    if (ext === 'json') {
+        const reader = new FileReader();
+        reader.onload = function(evt){
+            let geojson;
+            try {
+                geojson = JSON.parse(evt.target.result);
+            } catch (err) {
+                status.textContent = 'JSON解析失敗';
+                return;
+            }
+            drawTrackFromGeoJSON(geojson, file.name, status);
+        };
+        reader.readAsText(file);
+        return;
+    }
+    status.textContent = '不支援的檔案類型';
 });
+
+// GPX/GeoJSON繪製
+function drawTrackFromGeoJSON(geojson, filename, status) {
+    if (!geojson || !geojson.features) {
+        status.textContent = '檔案無有效軌跡資料';
+        return;
+    }
+    let coords = [];
+    geojson.features.forEach(f=>{
+        if (f.geometry.type === 'LineString') {
+            coords = coords.concat(f.geometry.coordinates.map(c=>[c[1],c[0]]));
+        }
+        if (f.geometry.type === 'MultiLineString') {
+            f.geometry.coordinates.forEach(arr=>{
+                coords = coords.concat(arr.map(c=>[c[1],c[0]]));
+            });
+        }
+    });
+    if (coords.length<2) {
+        status.textContent = '無有效軌跡座標';
+        return;
+    }
+    drawTrackFromLatLngs(coords, filename, status);
+}
+
+// 通用繪製
+function drawTrackFromLatLngs(latlngs, filename, status) {
+    if (trackLayer) map.removeLayer(trackLayer);
+    trackLayer = L.polyline(latlngs, {color:'#4f46e5',weight:5,opacity:0.87}).addTo(map);
+    map.fitBounds(trackLayer.getBounds());
+    status.textContent = '已繪製軌跡 ('+latlngs.length+'點)';
+
+    // 原始資料預覽
+    let preview = document.getElementById('previewContent');
+    if (preview) {
+        let html = '<table style="width:100%;font-size:.95em;"><tr><th>#</th><th>緯度</th><th>經度</th></tr>';
+        latlngs.slice(0,20).forEach((p,i)=>{
+            html += `<tr><td>${i+1}</td><td>${p[0].toFixed(6)}</td><td>${p[1].toFixed(6)}</td></tr>`;
+        });
+        if(latlngs.length>20) html += `<tr><td colspan=3>...共${latlngs.length}點</td></tr>`;
+        html += '</table>';
+        preview.innerHTML = html;
+    }
+}
 </script>
 </body>
 </html>
