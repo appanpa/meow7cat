@@ -36,7 +36,6 @@
             border-radius: 0.5rem;
             box-shadow: 0 0 15px rgba(0, 169, 157, 0.1);
             transition: all 0.3s ease;
-            /* 讓 card 撐滿格子 */
             width: 100%;
             min-height: 360px;
             display: flex;
@@ -151,7 +150,6 @@
             min-width: 220px;
             text-align: center;
         }
-        /* 主要區塊放大和均分：3欄 */
         .tools-grid {
             display: grid;
             grid-template-columns: 1fr;
@@ -163,13 +161,11 @@
                 gap: 2.5rem;
             }
         }
-        /* 讓狀態列與內容更寬 */
         .max-w-4xl { max-width: 1200px !important; }
     </style>
 </head>
 <body class="p-4 md:p-8">
 
-    <!-- 浮動式錯誤訊息容器 -->
     <div id="error-popup"></div>
 
     <div class="max-w-4xl mx-auto">
@@ -221,8 +217,11 @@
                         <input type="number" id="font-size" placeholder="字體大小 (預設: 12)" class="w-full">
                         <select id="position" class="w-full">
                             <option value="center">位置: 底部置中</option>
-                            <option value="corner">位置: 底部角落</option>
+                            <option value="corner">位置: 底部角落 (裝訂邊)</option>
                         </select>
+                    </div>
+                    <div id="corner-options" class="hidden">
+                        <input type="number" id="start-page-number" placeholder="從第幾頁開始編碼 (預設: 1)" class="w-full mt-4">
                     </div>
                     <button id="number-btn" class="btn w-full whitespace-nowrap"><i class="fas fa-sort-numeric-down btn-icon"></i><span class="btn-text">執行標記</span></button>
                 </div>
@@ -249,6 +248,8 @@
         const splitFileInput = document.getElementById('split-file'), splitBtn = document.getElementById('split-btn'), startPageInput = document.getElementById('start-page'), endPageInput = document.getElementById('end-page'), splitFileName = document.getElementById('split-file-name');
         const mergeFileInput = document.getElementById('merge-files'), mergeBtn = document.getElementById('merge-btn'), mergeFilesName = document.getElementById('merge-files-name'), mergeOutputNameInput = document.getElementById('merge-output-name');
         const numberFileInput = document.getElementById('number-file'), numberBtn = document.getElementById('number-btn'), fontSizeInput = document.getElementById('font-size'), positionSelect = document.getElementById('position'), numberFileName = document.getElementById('number-file-name');
+        const cornerOptions = document.getElementById('corner-options');
+        const startPageNumberInput = document.getElementById('start-page-number');
         const statusDiv = document.getElementById('status');
 
         // --- 通用函式 ---
@@ -341,26 +342,69 @@
             await downloadPdf(mergedPdfBytes, outputName.endsWith('.pdf') ? outputName : `${outputName}.pdf`);
             updateStatus('合併任務完成，已開始下載。');
         }));
+        
+        // --- 頁碼位置選擇事件 ---
+        positionSelect.addEventListener('change', () => {
+            if (positionSelect.value === 'corner') {
+                cornerOptions.classList.remove('hidden');
+            } else {
+                cornerOptions.classList.add('hidden');
+            }
+        });
 
         // --- 功能 3: PDF 加入頁碼 ---
         numberBtn.addEventListener('click', () => handleButtonClick(numberBtn, async () => {
             if (numberFileInput.files.length === 0) throw new Error('未選擇目標檔案。');
-            updateStatus('正在標記證物頁碼...', false);
+            updateStatus('正在標記頁碼...', false);
+
             const existingPdfBytes = await numberFileInput.files[0].arrayBuffer();
             const pdfDoc = await PDFDocument.load(existingPdfBytes);
             const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
             const pages = pdfDoc.getPages();
             const fontSize = parseInt(fontSizeInput.value) || 12;
             const position = positionSelect.value;
+            
+            const numberingStartPage = parseInt(startPageNumberInput.value) || 1;
+            if (numberingStartPage < 1 || numberingStartPage > pages.length) {
+                throw new Error(`起始頁碼必須介於 1 和總頁數 ${pages.length} 之間。`);
+            }
+
+            // 遍歷所有頁面
             for (let i = 0; i < pages.length; i++) {
-                const page = pages[i];
-                const { width, height } = page.getSize();
-                const pageNumberText = `${i + 1}`;
-                let x, y = 30;
-                const textWidth = helveticaFont.widthOfTextAtSize(pageNumberText, fontSize);
-                if (position === 'center') x = width / 2 - textWidth / 2;
-                else x = width - textWidth - 40;
-                page.drawText(pageNumberText, { x, y, size: fontSize, font: helveticaFont, color: rgb(0, 0, 0) });
+                // i 是從 0 開始的索引，所以要用 numberingStartPage - 1
+                if (i >= numberingStartPage - 1) {
+                    const page = pages[i];
+                    const { width, height } = page.getSize();
+                    const y = 30; // 頁碼與底部的距離
+
+                    const displayedPageNumber = (i - (numberingStartPage - 1)) + 1;
+                    const pageNumberText = `${displayedPageNumber}`;
+                    const textWidth = helveticaFont.widthOfTextAtSize(pageNumberText, fontSize);
+                    
+                    let x; // 頁碼的 X 軸座標
+
+                    if (position === 'center') {
+                        x = width / 2 - textWidth / 2;
+                    } else { // 角落模式 (裝訂邊)
+                        // [最新修改] 根據檔案本身的頁碼 (i + 1) 的奇偶性決定位置
+                        if ((i + 1) % 2 !== 0) {
+                            // 檔案本身的奇數頁 -> 右下角
+                            x = width - textWidth - 40;
+                        } else {
+                            // 檔案本身的偶數頁 -> 左下角
+                            x = 40;
+                        }
+                    }
+                    
+                    // 在頁面上繪製頁碼
+                    page.drawText(pageNumberText, {
+                        x,
+                        y,
+                        size: fontSize,
+                        font: helveticaFont,
+                        color: rgb(0, 0, 0)
+                    });
+                }
             }
             const newPdfBytes = await pdfDoc.save();
             await downloadPdf(newPdfBytes, `paginated_${numberFileInput.files[0].name}`);
