@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>稽核日誌智慧抽樣程式</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+        }
+        .step-card {
+            transition: all 0.3s ease;
+        }
+        .step-card.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        .file-drop-zone {
+            border: 2px dashed #d1d5db;
+            transition: all 0.2s ease;
+        }
+        .file-drop-zone.dragover {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+        .loader {
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* 美化滑桿 */
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #3b82f6;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+        input[type=range]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #3b82f6;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <div id="app" class="container mx-auto p-4 md:p-8 max-w-7xl">
+        <!-- 標題區 -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-900">稽核日誌智慧抽樣程式</h1>
+            <p class="mt-2 text-lg text-gray-600">一個現代化、視覺化的稽核流程工具</p>
+        </header>
+
+        <!-- 主體內容 -->
+        <main class="space-y-8">
+            <!-- 步驟一: 上傳與設定 -->
+            <section id="step1" class="step-card bg-white p-6 rounded-xl shadow-md">
+                <div class="flex items-center mb-4">
+                    <div class="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold text-xl">1</div>
+                    <h2 class="ml-4 text-2xl font-bold">上傳與設定</h2>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- 左側：檔案上傳 -->
+                    <div>
+                        <label class="font-semibold text-gray-700 block mb-2">上傳日誌 Excel 檔案</label>
+                        <div id="file-drop-zone" class="file-drop-zone rounded-lg p-8 text-center cursor-pointer">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                            <p class="mt-2 text-gray-600">將檔案拖曳至此，或 <span class="font-semibold text-blue-600">點擊上傳</span></p>
+                            <p class="text-xs text-gray-500 mt-1">支援多個 .xlsx 檔案</p>
+                            <input type="file" id="file-input" class="hidden" multiple accept=".xlsx">
+                        </div>
+                        <div id="file-list" class="mt-4 text-sm space-y-2"></div>
+                    </div>
+
+                    <!-- 右側：稽核資訊 -->
+                    <div class="space-y-4">
+                        <div>
+                            <label for="audit-year" class="font-semibold text-gray-700 block mb-2">稽核年份 (民國)</label>
+                            <input type="number" id="audit-year" class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="例如：114">
+                        </div>
+                        <div>
+                            <label for="audit-month" class="font-semibold text-gray-700 block mb-2">稽核月份</label>
+                            <input type="number" id="audit-month" class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="例如：9">
+                        </div>
+                        <div>
+                           <button id="settings-btn" class="w-full mt-2 p-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 font-semibold">進階設定</button>
+                        </div>
+                    </div>
+                </div>
+                 <div class="text-center mt-6">
+                    <button id="process-files-btn" class="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                        開始處理檔案
+                    </button>
+                </div>
+            </section>
+
+            <!-- 步驟二: 分析與抽樣 -->
+            <section id="step2" class="step-card bg-white p-6 rounded-xl shadow-md disabled">
+                <div class="flex items-center mb-4">
+                    <div class="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold text-xl">2</div>
+                    <h2 class="ml-4 text-2xl font-bold">分析與抽樣</h2>
+                </div>
+                
+                <div id="analysis-results" class="space-y-6"></div>
+
+                <div class="mt-8 pt-6 border-t">
+                    <h3 class="font-bold text-xl mb-4">設定抽樣計畫</h3>
+                    <div class="space-y-4">
+                         <div>
+                            <label for="overall-ratio" class="font-semibold text-gray-700 block mb-2">總稽核比例 (%)</label>
+                            <div class="flex items-center space-x-4">
+                               <input type="range" id="overall-ratio-slider" min="0" max="100" value="10" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                               <input type="number" id="overall-ratio-input" min="0" max="100" value="10" class="w-24 p-2 border border-gray-300 rounded-md">
+                            </div>
+                            <p class="text-center mt-2 text-gray-600">預計總共抽出 <span id="total-samples-needed" class="font-bold text-blue-600">0</span> 筆</p>
+                        </div>
+                        <div id="specific-sampling-section" class="space-y-4">
+                           <h4 class="font-semibold text-gray-700">特定系統抽樣比例 (可選)</h4>
+                           <div id="specific-systems-container" class="space-y-4"></div>
+                        </div>
+                    </div>
+                </div>
+                 <div class="text-center mt-6">
+                    <button id="perform-sampling-btn" class="bg-green-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-green-700 disabled:bg-gray-400">
+                        執行抽樣
+                    </button>
+                </div>
+            </section>
+            
+            <!-- 步驟三: 結果與匯出 -->
+            <section id="step3" class="step-card bg-white p-6 rounded-xl shadow-md disabled">
+                <div class="flex items-center mb-4">
+                    <div class="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold text-xl">3</div>
+                    <h2 class="ml-4 text-2xl font-bold">結果與匯出</h2>
+                </div>
+                <div id="sampling-results" class="space-y-6"></div>
+                 <div class="mt-8 pt-6 border-t grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
+                     <div class="space-y-4">
+                        <div>
+                             <label for="excel-filename" class="font-semibold text-gray-700 block mb-2">匯出 Excel 檔名</label>
+                             <input type="text" id="excel-filename" class="w-full p-2 border border-gray-300 rounded-md" placeholder="例如：114年9月稽核報告">
+                        </div>
+                        <div>
+                             <label for="word-filename" class="font-semibold text-gray-700 block mb-2">匯出 Word 檔名</label>
+                             <input type="text" id="word-filename" class="w-full p-2 border border-gray-300 rounded-md" placeholder="例如：114年9月稽核簽文">
+                        </div>
+                        <div>
+                             <label for="word-template-input" class="font-semibold text-gray-700 block mb-2">Word 範本 (.docx, 可選)</label>
+                             <input type="file" id="word-template-input" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" accept=".docx">
+                        </div>
+                     </div>
+                     <div class="flex flex-col space-y-4">
+                         <button id="export-excel-btn" class="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 disabled:bg-gray-400">匯出 Excel 報告</button>
+                         <button id="export-word-btn" class="bg-sky-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-sky-700 disabled:bg-gray-400">匯出 Word 報告</button>
+                     </div>
+                 </div>
+            </section>
+        </main>
+        
+        <!-- 狀態顯示區 -->
+        <footer id="status-area" class="mt-8 text-center text-sm text-gray-500">
+             <div id="loader" class="hidden mx-auto loader"></div>
+             <p id="status-text">請先上傳檔案並填寫稽核年份與月份</p>
+        </footer>
+    </div>
+    
+    <!-- 進階設定 Modal -->
+    <div id="settings-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+      <div class="relative top-20 mx-auto p-5 border w-full max-w-3xl shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+          <h3 class="text-xl leading-6 font-bold text-gray-900 text-center mb-4">進階設定</h3>
+          <div class="mt-2 px-7 py-3 space-y-4 max-h-[60vh] overflow-y-auto">
+            
+            <details class="group">
+              <summary class="flex justify-between items-center font-medium cursor-pointer list-none">
+                <span class="text-lg">單位與成員名單 (TEAMS)</span>
+                <span class="transition group-open:rotate-180">
+                  <svg fill="none" height="24" shape-rendering="geometricPrecision" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24" width="24"><path d="M6 9l6 6 6-6"></path></svg>
+                </span>
+              </summary>
+              <div class="text-neutral-600 mt-3 group-open:animate-fadeIn">
+                <textarea id="settings-teams" class="w-full h-48 p-2 border rounded font-mono text-sm"></textarea>
+              </div>
+            </details>
+
+            <details class="group">
+              <summary class="flex justify-between items-center font-medium cursor-pointer list-none">
+                <span class="text-lg">需排除的系統 (SYSTEMS_TO_REMOVE)</span>
+              </summary>
+              <div class="text-neutral-600 mt-3 group-open:animate-fadeIn">
+                <textarea id="settings-systems-to-remove" class="w-full h-32 p-2 border rounded font-mono text-sm"></textarea>
+              </div>
+            </details>
+
+            <details class="group">
+              <summary class="flex justify-between items-center font-medium cursor-pointer list-none">
+                <span class="text-lg">可疑查詢條件 (SUSPICIOUS_QUERY_CONFIG)</span>
+              </summary>
+              <div class="text-neutral-600 mt-3 group-open:animate-fadeIn">
+                <textarea id="settings-suspicious-config" class="w-full h-48 p-2 border rounded font-mono text-sm"></textarea>
+              </div>
+            </details>
+            
+             <details class="group">
+              <summary class="flex justify-between items-center font-medium cursor-pointer list-none">
+                <span class="text-lg">查詢條件擷取規則 (QUERY_EXTRACTION_RULES)</span>
+              </summary>
+              <div class="text-neutral-600 mt-3 group-open:animate-fadeIn">
+                <textarea id="settings-extraction-rules" class="w-full h-48 p-2 border rounded font-mono text-sm"></textarea>
+              </div>
+            </details>
+            
+          </div>
+          <div class="items-center px-4 py-3 mt-4 text-center">
+            <button id="save-settings-btn" class="px-6 py-2 bg-blue-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300">
+              儲存設定
+            </button>
+             <button id="close-settings-btn" class="ml-4 px-6 py-2 bg-gray-200 text-gray-800 text-base font-medium rounded-md shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300">
+              關閉
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <script>
+    // --- APP STATE & CONFIG ---
+    let CONFIG = {
+        SYSTEMS_TO_REMOVE: [
+            "人事管理資訊平台(OA2)", "公文線上簽核系統(OO)", "電子化簿冊系統(OC)",
+            "警用裝備管理系統(MB2)", "數位情資科技偵查教育訓練平臺(WM)"
+        ],
+        TEAMS: {
+            "第一小隊": ["NXX-徐X泰", "TX4-蔡X全", "WXN-江X憲", "FXG-賴X旋"],
+            "第二小隊": ["SXC-詹X焙", "WXF-藍X凱", "DXE-莊X傳", "5X9-周X禾"],
+            "第三小隊": ["AXX-張X源", "HXY-何X慧", "UXV-林X堯"],
+            "第四小隊": ["2X2-楊X彰", "MX6-陳X任", "GXP-宋X毅", "GXY-陳X宇"],
+            "第一分隊主管及大隊部主管": ["4X7-蔡X賜", "7XC-張X誠", "EXM-蔡X正", "VX5-胡X庭", "YXG-邱X伶", "ZXP-連X雄"]
+        },
+        SUSPICIOUS_QUERY_CONFIG: {
+            "vague_reasons": ["辦案", "查詢", "公務", "測試"],
+            "reasons_required_for_systems": [
+                "戶政資料系統(OI2)", "國民身分證相片系統(OJ)", "智慧分析決策支援系統(AI)",
+                "涉案車輛軌跡查詢系統(DE)", "警政相片比對系統(OQ3)"
+            ],
+            "suspicious_systems": ["警政婦幼案件管理系統(DH2)"]
+        },
+        QUERY_EXTRACTION_RULES: {
+            "戶政資料系統(OI2)": [["身分證號=", 5], ["戶籍地址=", 5], ["姓名=", 1]],
+            "車籍資料系統(TA2)": [["車號=", 3], ["車主姓名=", 1], ["身分證號=", 5]],
+            "國民身分證相片系統(OJ)": [["身分證號=", 5], ["姓名=", 1]],
+            "智慧分析決策支援系統(AI)": [["查詢條件=", 2], ["身分證號=", 5], ["姓名=", 1], ["車號=", 3]],
+            "警政婦幼案件管理系統(DH2)": [["身分證號=", 5], ["姓名=", 1]],
+            "刑案資訊系統(CF)": [["身分證號=", 5], ["姓名=", 1]],
+            "涉案車輛軌跡查詢系統(DE)": [["車號=", 3], ["車牌號碼=", 3]],
+            "案件管理_e化查捕逃犯(EZE7)": [["身分證號=", 5], ["姓名=", 1]],
+            "停車數位多元化查詢系統(TN2)": [["停車車號=", 3]],
+            "警政相片比對系統(OQ3)": [["相片檔名=", 5]],
+            "國人入出境(IQ2)": [["身分證號=", 5]],
+        }
+    };
+    
+    let ALL_DATA = [];
+    let FILTERED_DATA = [];
+    let ABNORMAL_DATA = [];
+    let FINAL_SAMPLED_DATA = [];
+    let userToTeamMap = {};
+    let systemCounts = {};
+    let teamCounts = {};
+
+    const dom = {
+        // ... (all DOM elements will be defined in init)
+    };
+    
+    // --- UI EVENT LISTENERS ---
+    function init() {
+        // Cache all DOM elements
+        Object.assign(dom, {
+            fileDropZone: document.getElementById('file-drop-zone'),
+            fileInput: document.getElementById('file-input'),
+            fileList: document.getElementById('file-list'),
+            auditYear: document.getElementById('audit-year'),
+            auditMonth: document.getElementById('audit-month'),
+            processFilesBtn: document.getElementById('process-files-btn'),
+            settingsBtn: document.getElementById('settings-btn'),
+            settingsModal: document.getElementById('settings-modal'),
+            closeSettingsBtn: document.getElementById('close-settings-btn'),
+            saveSettingsBtn: document.getElementById('save-settings-btn'),
+            settingsTeams: document.getElementById('settings-teams'),
+            settingsSystemsToRemove: document.getElementById('settings-systems-to-remove'),
+            settingsSuspiciousConfig: document.getElementById('settings-suspicious-config'),
+            settingsExtractionRules: document.getElementById('settings-extraction-rules'),
+            step2: document.getElementById('step2'),
+            analysisResults: document.getElementById('analysis-results'),
+            overallRatioSlider: document.getElementById('overall-ratio-slider'),
+            overallRatioInput: document.getElementById('overall-ratio-input'),
+            totalSamplesNeeded: document.getElementById('total-samples-needed'),
+            specificSystemsContainer: document.getElementById('specific-systems-container'),
+            performSamplingBtn: document.getElementById('perform-sampling-btn'),
+            step3: document.getElementById('step3'),
+            samplingResults: document.getElementById('sampling-results'),
+            excelFilename: document.getElementById('excel-filename'),
+            wordFilename: document.getElementById('word-filename'),
+            wordTemplateInput: document.getElementById('word-template-input'),
+            exportExcelBtn: document.getElementById('export-excel-btn'),
+            exportWordBtn: document.getElementById('export-word-btn'),
+            loader: document.getElementById('loader'),
+            statusText: document.getElementById('status-text'),
+        });
+
+        // Event Listeners
+        dom.fileDropZone.addEventListener('click', () => dom.fileInput.click());
+        dom.fileDropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dom.fileDropZone.classList.add('dragover');
+        });
+        dom.fileDropZone.addEventListener('dragleave', () => dom.fileDropZone.classList.remove('dragover'));
+        dom.fileDropZone.addEventListener('drop', handleFileDrop);
+        dom.fileInput.addEventListener('change', handleFileSelect);
+
+        dom.processFilesBtn.addEventListener('click', processFiles);
+
+        dom.settingsBtn.addEventListener('click', openSettingsModal);
+        dom.closeSettingsBtn.addEventListener('click', closeSettingsModal);
+        dom.saveSettingsBtn.addEventListener('click', saveSettings);
+
+        dom.overallRatioSlider.addEventListener('input', syncRatioInputs);
+        dom.overallRatioInput.addEventListener('input', syncRatioInputs);
+        
+        dom.performSamplingBtn.addEventListener('click', performSampling);
+
+        dom.exportExcelBtn.addEventListener('click', exportToExcel);
+        dom.exportWordBtn.addEventListener('click', exportToWord);
+
+        // Auto-fill date
+        const today = new Date();
+        dom.auditYear.value = today.getFullYear() - 1911;
+        dom.auditMonth.value = today.getMonth() + 1;
+    }
+
+    function handleFileDrop(e) {
+        e.preventDefault();
+        dom.fileDropZone.classList.remove('dragover');
+        dom.fileInput.files = e.dataTransfer.files;
+        updateFileList();
+    }
+
+    function handleFileSelect(e) {
+        updateFileList();
+    }
+    
+    function updateFileList() {
+        dom.fileList.innerHTML = '';
+        if (dom.fileInput.files.length > 0) {
+            let filesHtml = '<p class="font-semibold text-gray-700">已選取檔案:</p><ul class="list-disc list-inside text-gray-600">';
+            for (const file of dom.fileInput.files) {
+                filesHtml += `<li>${file.name} (${(file.size / 1024).toFixed(2)} KB)</li>`;
+            }
+            filesHtml += '</ul>';
+            dom.fileList.innerHTML = filesHtml;
+        }
+    }
+    
+    function updateStatus(text, showLoader = false) {
+        dom.statusText.textContent = text;
+        dom.loader.style.display = showLoader ? 'block' : 'none';
+    }
+    
+    // --- SETTINGS MODAL ---
+    function openSettingsModal() {
+        dom.settingsTeams.value = JSON.stringify(CONFIG.TEAMS, null, 2);
+        dom.settingsSystemsToRemove.value = JSON.stringify(CONFIG.SYSTEMS_TO_REMOVE, null, 2);
+        dom.settingsSuspiciousConfig.value = JSON.stringify(CONFIG.SUSPICIOUS_QUERY_CONFIG, null, 2);
+        dom.settingsExtractionRules.value = JSON.stringify(CONFIG.QUERY_EXTRACTION_RULES, null, 2);
+        dom.settingsModal.style.display = 'block';
+    }
+
+    function closeSettingsModal() {
+        dom.settingsModal.style.display = 'none';
+    }
+
+    function saveSettings() {
+        try {
+            CONFIG.TEAMS = JSON.parse(dom.settingsTeams.value);
+            CONFIG.SYSTEMS_TO_REMOVE = JSON.parse(dom.settingsSystemsToRemove.value);
+            CONFIG.SUSPICIOUS_QUERY_CONFIG = JSON.parse(dom.settingsSuspiciousConfig.value);
+            CONFIG.QUERY_EXTRACTION_RULES = JSON.parse(dom.settingsExtractionRules.value);
+            alert('設定已儲存！');
+            closeSettingsModal();
+        } catch (e) {
+            alert('設定格式錯誤，請確認為有效的 JSON 格式。\n\n錯誤訊息: ' + e.message);
+        }
+    }
+    
+    // --- STEP 1: FILE PROCESSING ---
+    async function processFiles() {
+        if (dom.fileInput.files.length === 0 || !dom.auditYear.value || !dom.auditMonth.value) {
+            alert('請上傳至少一個 Excel 檔案，並填寫稽核年份與月份。');
+            return;
+        }
+
+        updateStatus('正在讀取 Excel 檔案...', true);
+        dom.processFilesBtn.disabled = true;
+
+        const allRecords = [];
+        for (const file of dom.fileInput.files) {
+            try {
+                const data = await file.arrayBuffer();
+                const workbook = XLSX.read(data);
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                // skiprows=8 -> range: 8
+                const records = XLSX.utils.sheet_to_json(worksheet, { range: 8, defval: "" });
+                allRecords.push(...records);
+            } catch (error) {
+                updateStatus(`讀取檔案 ${file.name} 失敗: ${error.message}`, false);
+                dom.processFilesBtn.disabled = false;
+                return;
+            }
+        }
+        
+        // 給予每筆資料一個唯一的 ID (模擬 pandas index)
+        ALL_DATA = allRecords.map((record, index) => ({ ...record, _id: index }));
+
+        updateStatus('檔案讀取完成，正在進行資料預處理與分析...', true);
+        
+        setTimeout(() => { // 讓 UI 有時間更新
+            // Pre-processing and analysis
+            filterData();
+            buildUserToTeamMap();
+            mapTeamToData();
+            analyzeAbnormal();
+            calculateInitialStats();
+
+            // UI Update
+            displayAnalysisResults();
+            setupSpecificSampling();
+
+            updateStatus('分析完成。請設定抽樣計畫。', false);
+            dom.step2.classList.remove('disabled');
+            dom.processFilesBtn.disabled = false;
+        }, 50);
+    }
+
+    function filterData() {
+        FILTERED_DATA = ALL_DATA.filter(row => 
+            row['作業種類'] && !CONFIG.SYSTEMS_TO_REMOVE.includes(String(row['作業種類']).trim())
+        );
+    }
+    
+    function buildUserToTeamMap() {
+        userToTeamMap = {};
+        for (const team in CONFIG.TEAMS) {
+            CONFIG.TEAMS[team].forEach(user => {
+                userToTeamMap[user] = team;
+            });
+        }
+    }
+    
+    function mapTeamToData() {
+        FILTERED_DATA.forEach(row => {
+            row['稽核單位'] = userToTeamMap[row['使用者']] || '未分類';
+        });
+    }
+    
+    function minguoConverter(dateStr) {
+        if (typeof dateStr !== 'string') return null;
+        try {
+            // 處理 '113/01/01 00:00:00' 格式
+            const parts = dateStr.split(' ')[0].split('/');
+            if (parts.length === 3) {
+                const year = parseInt(parts[0], 10);
+                if (year < 1911) {
+                    const gregorianYear = year + 1911;
+                    const restOfDate = dateStr.substring(parts[0].length);
+                    const newDateStr = `${gregorianYear}${restOfDate}`;
+                    return new Date(newDateStr);
+                }
+            }
+             // 嘗試直接解析，適用於西元年格式
+            return new Date(dateStr);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function analyzeAbnormal() {
+        const abnormalRecords = {}; // Use a map to handle duplicates by _id
+        
+        FILTERED_DATA.forEach(row => {
+            const reasons = [];
+            
+            // 時間異常
+            const opTime = minguoConverter(row['作業時間']);
+            row['作業時間_dt'] = opTime; // Attach JS Date object
+            if (opTime) {
+                const hour = opTime.getHours();
+                if (hour < 8 || hour >= 20) {
+                    reasons.push('時間異常');
+                }
+            }
+
+            const reasonStr = String(row['查詢事由'] || '').trim();
+            // 事由異常
+            if (CONFIG.SUSPICIOUS_QUERY_CONFIG.vague_reasons.includes(reasonStr)) {
+                reasons.push('事由異常');
+            }
+            if (reasonStr === '' && CONFIG.SUSPICIOUS_QUERY_CONFIG.reasons_required_for_systems.includes(row['作業種類'])) {
+                reasons.push('事由異常');
+            }
+
+            // 特定系統異常
+            if (CONFIG.SUSPICIOUS_QUERY_CONFIG.suspicious_systems.includes(row['作業種類'])) {
+                 reasons.push('存取特定系統');
+            }
+
+            if (reasons.length > 0) {
+                if (abnormalRecords[row._id]) {
+                    // This case is unlikely with current logic, but good for safety
+                    reasons.forEach(r => {
+                        if(!abnormalRecords[row._id].異常原因.includes(r)) {
+                            abnormalRecords[row._id].異常原因 += `, ${r}`;
+                        }
+                    });
+                } else {
+                    abnormalRecords[row._id] = { ...row, '異常原因': reasons.join(', ') };
+                }
+            }
+        });
+        ABNORMAL_DATA = Object.values(abnormalRecords);
+    }
+    
+    function calculateInitialStats() {
+        const systemConditions = {
+            "戶政資料系統(OI2)": row => row['作業種類'] === '戶政資料系統(OI2)',
+            "國民身分證相片系統(OJ)": row => row['作業種類'] === '國民身分證相片系統(OJ)',
+            "M_Police": row => String(row['作業種類']).toLowerCase().includes('m_police'),
+            "智慧分析決策支援系統(AI)": row => row['作業種類'] === '智慧分析決策支援系統(AI)'
+        };
+        
+        systemCounts = {};
+        for (const name in systemConditions) {
+            systemCounts[name] = FILTERED_DATA.filter(systemConditions[name]).length;
+        }
+
+        teamCounts = {};
+        for (const teamName in CONFIG.TEAMS) {
+            teamCounts[teamName] = FILTERED_DATA.filter(row => row['稽核單位'] === teamName).length;
+        }
+    }
+    
+    // --- STEP 2: UI DISPLAY & SAMPLING ---
+    function displayAnalysisResults() {
+        let html = `
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-center">
+                <div class="bg-gray-100 p-4 rounded-lg">
+                    <p class="text-sm text-gray-600">總查詢次數</p>
+                    <p class="text-2xl font-bold">${FILTERED_DATA.length}</p>
+                </div>
+                <div class="bg-red-100 p-4 rounded-lg">
+                    <p class="text-sm text-red-700">異常及可疑查詢</p>
+                    <p class="text-2xl font-bold text-red-700">${ABNORMAL_DATA.length}</p>
+                </div>
+            </div>
+            <div class="mt-6">
+                <h3 class="font-bold text-xl mb-2">各系統查詢統計</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    ${Object.entries(systemCounts).map(([name, count]) => `
+                        <div class="bg-blue-50 p-3 rounded-lg">
+                            <p class="font-semibold text-blue-800">${name}</p>
+                            <p class="text-lg font-bold">${count} 筆</p>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            <div class="mt-6">
+                <h3 class="font-bold text-xl mb-2">各單位查詢統計</h3>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    ${Object.entries(teamCounts).map(([name, count]) => `
+                        <div class="bg-indigo-50 p-3 rounded-lg">
+                            <p class="font-semibold text-indigo-800">${name}</p>
+                            <p class="text-lg font-bold">${count} 筆</p>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+        dom.analysisResults.innerHTML = html;
+    }
+
+    function syncRatioInputs(e) {
+        const source = e.target.id.includes('slider') ? 'slider' : 'input';
+        const value = e.target.value;
+        if (source === 'slider') {
+            dom.overallRatioInput.value = value;
+        } else {
+            dom.overallRatioSlider.value = value;
+        }
+        updateTotalSamplesNeeded();
+    }
+
+    function updateTotalSamplesNeeded() {
+        const ratio = parseFloat(dom.overallRatioInput.value) || 0;
+        const total = FILTERED_DATA.length;
+        const needed = Math.round(total * (ratio / 100));
+        dom.totalSamplesNeeded.textContent = needed;
+    }
+    
+    function setupSpecificSampling() {
+        let html = '';
+        for (const name in systemCounts) {
+            const count = systemCounts[name];
+            if (count > 0) {
+                html += `
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <label for="ratio-${name}" class="font-semibold text-gray-700 block mb-2">${name} (${count} 筆)</label>
+                         <div class="flex items-center space-x-4">
+                            <input type="range" id="slider-${name}" data-system="${name}" min="0" max="100" value="0" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer specific-slider">
+                            <input type="number" id="input-${name}" data-system="${name}" min="0" max="100" value="0" class="w-24 p-2 border border-gray-300 rounded-md specific-input">
+                         </div>
+                         <p class="text-sm text-right mt-1 text-gray-500">預計抽出 <span id="needed-${name}" class="font-bold">0</span> 筆</p>
+                    </div>
+                `;
+            }
+        }
+        dom.specificSystemsContainer.innerHTML = html;
+        updateTotalSamplesNeeded(); // Initial calculation
+
+        document.querySelectorAll('.specific-slider, .specific-input').forEach(el => {
+            el.addEventListener('input', (e) => {
+                const system = e.target.dataset.system;
+                const value = e.target.value;
+                document.getElementById(`slider-${system}`).value = value;
+                document.getElementById(`input-${system}`).value = value;
+                
+                const total = systemCounts[system];
+                const needed = Math.round(total * (value / 100));
+                document.getElementById(`needed-${system}`).textContent = needed;
+            });
+        });
+    }
+
+    function performStratifiedSampling(stratum, numNeeded, abnormalInSystem) {
+        if (!stratum || stratum.length === 0 || numNeeded <= 0) return [];
+        
+        numNeeded = Math.round(numNeeded);
+        
+        const abnormalInStratum = stratum.filter(row => abnormalInSystem.some(ab => ab._id === row._id));
+        const normalInStratum = stratum.filter(row => !abnormalInSystem.some(ab => ab._id === row._id));
+        
+        if (abnormalInStratum.length >= numNeeded) {
+            return shuffleArray(abnormalInStratum).slice(0, numNeeded);
+        }
+        
+        const randomNeeded = numNeeded - abnormalInStratum.length;
+        const randomSampled = shuffleArray(normalInStratum).slice(0, randomNeeded);
+        
+        return [...abnormalInStratum, ...randomSampled];
+    }
+    
+    function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    }
+
+    function performSampling() {
+        updateStatus('正在執行抽樣...', true);
+        dom.performSamplingBtn.disabled = true;
+
+        setTimeout(() => {
+            const totalSamplesNeeded = parseInt(dom.totalSamplesNeeded.textContent, 10);
+            
+            // Pool 1: 指定項目
+            let specified_df = [];
+            const specified_ids = new Set();
+            document.querySelectorAll('.specific-input').forEach(input => {
+                const systemName = input.dataset.system;
+                const ratio = parseFloat(input.value);
+                if (ratio > 0) {
+                    const system_df = FILTERED_DATA.filter(row => {
+                        const conditions = {
+                            "戶政資料系統(OI2)": r => r['作業種類'] === '戶政資料系統(OI2)',
+                            "國民身分證相片系統(OJ)": r => r['作業種類'] === '國民身分證相片系統(OJ)',
+                            "M_Police": r => String(r['作業種類']).toLowerCase().includes('m_police'),
+                            "智慧分析決策支援系統(AI)": r => r['作業種類'] === '智慧分析決策支援系統(AI)'
+                        };
+                        return conditions[systemName](row);
+                    });
+                    const samplesNeeded = Math.round(system_df.length * (ratio / 100));
+                    const sampled = performStratifiedSampling(system_df, samplesNeeded, ABNORMAL_DATA);
+                    sampled.forEach(s => {
+                        if (!specified_ids.has(s._id)) {
+                            specified_df.push(s);
+                            specified_ids.add(s._id);
+                        }
+                    });
+                }
+            });
+
+            // Pool 2: 剩餘異常項目
+            const unique_abnormal_df = ABNORMAL_DATA.filter(row => !specified_ids.has(row._id));
+
+            // Pool 3: 普通項目
+            const mandatory_ids = new Set([...specified_ids, ...ABNORMAL_DATA.map(r => r._id)]);
+            const pool_df = FILTERED_DATA.filter(row => !mandatory_ids.has(row._id));
+            
+            // 依優先級建構
+            let finalSampleList = [];
+            let currentCount = 0;
+            
+            finalSampleList.push(...specified_df);
+            currentCount = finalSampleList.length;
+            
+            if (currentCount < totalSamplesNeeded) {
+                const neededFromAbnormal = totalSamplesNeeded - currentCount;
+                const abnormalSamples = shuffleArray(unique_abnormal_df).slice(0, neededFromAbnormal);
+                finalSampleList.push(...abnormalSamples);
+                currentCount = finalSampleList.length;
+            }
+
+            if (currentCount < totalSamplesNeeded) {
+                const neededFromPool = totalSamplesNeeded - currentCount;
+                const randomSamples = shuffleArray(pool_df).slice(0, neededFromPool);
+                finalSampleList.push(...randomSamples);
+            }
+
+            if (currentCount > totalSamplesNeeded) {
+                finalSampleList = shuffleArray(finalSampleList).slice(0, totalSamplesNeeded);
+            }
+            
+            FINAL_SAMPLED_DATA = finalSampleList;
+
+            displaySamplingResults();
+            updateStatus('抽樣完成！請確認結果並匯出報告。', false);
+            dom.step3.classList.remove('disabled');
+            dom.performSamplingBtn.disabled = false;
+        }, 50);
+    }
+
+    function displaySamplingResults() {
+         const sampledOi2Count = FINAL_SAMPLED_DATA.filter(r => r['作業種類'] === '戶政資料系統(OI2)').length;
+         const sampledOjCount = FINAL_SAMPLED_DATA.filter(r => r['作業種類'] === '國民身分證相片系統(OJ)').length;
+         const sampledMpCount = FINAL_SAMPLED_DATA.filter(r => String(r['作業種類']).toLowerCase().includes('m_police')).length;
+         const sampledAiCount = FINAL_SAMPLED_DATA.filter(r => r['作業種類'] === '智慧分析決策支援系統(AI)').length;
+         const mainSystemsCount = sampledOi2Count + sampledOjCount + sampledMpCount + sampledAiCount;
+         const otherSystemsCount = FINAL_SAMPLED_DATA.length - mainSystemsCount;
+
+         let html = `
+            <div class="bg-gray-100 p-4 rounded-lg text-center">
+                <p class="text-sm text-gray-600">本次稽核總抽出筆數</p>
+                <p class="text-3xl font-bold">${FINAL_SAMPLED_DATA.length}</p>
+            </div>
+             <div class="mt-6">
+                <h3 class="font-bold text-xl mb-2">各單位抽出筆數</h3>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    ${Object.keys(CONFIG.TEAMS).map(teamName => {
+                        const count = FINAL_SAMPLED_DATA.filter(r => r['稽核單位'] === teamName).length;
+                        return `
+                        <div class="bg-indigo-50 p-3 rounded-lg">
+                            <p class="font-semibold text-indigo-800">${teamName}</p>
+                            <p class="text-lg font-bold">${count} 筆</p>
+                        </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+             <div class="mt-6">
+                <h3 class="font-bold text-xl mb-2">各系統抽出筆數</h3>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                     <div class="bg-blue-50 p-3 rounded-lg"><p class="font-semibold text-blue-800">戶政資料系統(OI2)</p><p class="text-lg font-bold">${sampledOi2Count} 筆</p></div>
+                     <div class="bg-blue-50 p-3 rounded-lg"><p class="font-semibold text-blue-800">國民身分證相片系統(OJ)</p><p class="text-lg font-bold">${sampledOjCount} 筆</p></div>
+                     <div class="bg-blue-50 p-3 rounded-lg"><p class="font-semibold text-blue-800">M_Police</p><p class="text-lg font-bold">${sampledMpCount} 筆</p></div>
+                     <div class="bg-blue-50 p-3 rounded-lg"><p class="font-semibold text-blue-800">智慧分析決策支援系統(AI)</p><p class="text-lg font-bold">${sampledAiCount} 筆</p></div>
+                     <div class="bg-blue-50 p-3 rounded-lg"><p class="font-semibold text-blue-800">其他系統</p><p class="text-lg font-bold">${otherSystemsCount} 筆</p></div>
+                </div>
+            </div>
+         `;
+         dom.samplingResults.innerHTML = html;
+    }
+
+
+    // --- STEP 3: EXPORT ---
+    function exportToExcel() {
+        if (FINAL_SAMPLED_DATA.length === 0) {
+            alert('沒有抽樣資料可供匯出。');
+            return;
+        }
+        const fileName = dom.excelFilename.value || '稽核報告';
+
+        updateStatus('正在產生 Excel 檔案...', true);
+        
+        // 使用 setTimeout 讓 UI 更新
+        setTimeout(() => {
+            const wb = XLSX.utils.book_new();
+
+            // 異常總表
+            if (ABNORMAL_DATA.length > 0) {
+                const abnormalExport = ABNORMAL_DATA.map(({稽核單位, 作業時間_dt, _id, ...rest}) => rest);
+                const ws_abnormal = XLSX.utils.json_to_sheet(abnormalExport);
+                XLSX.utils.book_append_sheet(wb, ws_abnormal, '異常及可疑查詢總表');
+            }
+
+            // 各單位抽樣清單
+            for (const teamName in CONFIG.TEAMS) {
+                let teamData = FINAL_SAMPLED_DATA.filter(row => row['稽核單位'] === teamName);
+                if (teamData.length > 0) {
+                    // 排序與分組
+                    teamData.sort((a, b) => a['作業時間_dt'] - b['作業時間_dt']);
+                    
+                    const getDayGroup = (day) => {
+                        if (day <= 7) return 1;
+                        if (day <= 14) return 2;
+                        if (day <= 21) return 3;
+                        return 4;
+                    };
+                    
+                    const preparedData = [];
+                    let lastGroup = null;
+                    teamData.forEach(row => {
+                        const day = row['作業時間_dt'].getDate();
+                        const currentGroup = getDayGroup(day);
+                        if (lastGroup !== null && currentGroup !== lastGroup) {
+                            preparedData.push({}); // Insert blank row
+                        }
+                        const {稽核單位, 作業時間_dt, 異常原因, _id, ...exportRow} = row;
+                        preparedData.push(exportRow);
+                        lastGroup = currentGroup;
+                    });
+
+                    const ws_team = XLSX.utils.json_to_sheet(preparedData);
+                    XLSX.utils.book_append_sheet(wb, ws_team, teamName);
+                }
+            }
+
+            XLSX.writeFile(wb, `${fileName}.xlsx`);
+            updateStatus('Excel 檔案已匯出！', false);
+        }, 50);
+    }
+    
+    // Word Export related functions
+    function cleanQueryCondition(conditionStr, systemName) {
+        if (typeof conditionStr !== 'string') return "";
+
+        let rules = null;
+        if (systemName.toLowerCase().includes("m_police")) {
+            rules = [["車號=", 3], ["身分證號=", 5], ["姓名=", 1]];
+        } else {
+            rules = CONFIG.QUERY_EXTRACTION_RULES[systemName];
+        }
+
+        if (rules) {
+            for (const [prefix, length] of rules) {
+                const startIndex = conditionStr.indexOf(prefix);
+                if (startIndex !== -1) {
+                    const contentToParse = conditionStr.substring(startIndex + prefix.length).trim();
+                    let valueToExtract = "";
+                    if (contentToParse.startsWith('["')) {
+                        const closingBracketIndex = contentToParse.indexOf('"]');
+                        if (closingBracketIndex !== -1) valueToExtract = contentToParse.substring(2, closingBracketIndex);
+                    } else if (contentToParse.startsWith('"')) {
+                        const closingQuoteIndex = contentToParse.indexOf('"', 1);
+                        if (closingQuoteIndex !== -1) valueToExtract = contentToParse.substring(1, closingQuoteIndex);
+                    } else {
+                        valueToExtract = contentToParse.split(' ')[0]; // Take first part
+                    }
+
+                    const extracted = valueToExtract.substring(0, length);
+                    const mask = "身分證號".includes(prefix) ? "*****" : ("車號".includes(prefix) ? "****" : "**");
+                    return `${prefix}${extracted}${mask}`;
+                }
+            }
+        }
+        return conditionStr.length > 15 ? conditionStr.substring(0, 15) + '...' : conditionStr;
+    }
+
+
+    function generateDetailedReportText(data) {
+        const year = dom.auditYear.value;
+        const month = dom.auditMonth.value;
+        if (data.length === 0) return "本次抽樣無任何資料可供分析。";
+
+        const aggData = {}; // Simulating groupby
+        data.forEach(row => {
+            if (!row['作業時間_dt']) return;
+            const monthDay = `${row['作業時間_dt'].getMonth() + 1}月${row['作業時間_dt'].getDate()}日`;
+            const key = `${row['稽核單位']}|${row['使用者']}|${monthDay}|${row['作業種類']}`;
+            if (!aggData[key]) {
+                aggData[key] = {
+                    count: 0,
+                    query: row['查詢條件'],
+                    day: row['作業時間_dt'].getDate()
+                };
+            }
+            aggData[key].count++;
+        });
+
+        const lines = { g1: [], g2: [], g3: [], g4: [] };
+        for (const key in aggData) {
+            const [team, user, monthDay, system] = key.split('|');
+            const info = aggData[key];
+            const userName = user.includes('-') ? user.split('-')[1] : user;
+            const cleanQuery = cleanQueryCondition(info.query, system);
+            const formattedQuery = cleanQuery.includes('=') 
+                ? `${cleanQuery.split('=')[0]}=「${cleanQuery.split('=')[1]}」`
+                : `「${cleanQuery}」`;
+            
+            const line = `查本大隊${team}${userName}於${monthDay}擔服＿＿＿＿勤務(8-20)，以${formattedQuery}等，使用「${system}」計${info.count}筆，為＿＿＿＿所需，於勤務時段使用，符合規定。`;
+            
+            const day = info.day;
+            if (day <= 7) lines.g1.push(line);
+            else if (day <= 14) lines.g2.push(line);
+            else if (day <= 21) lines.g3.push(line);
+            else lines.g4.push(line);
+        }
+
+        let reportText = "";
+        const gregorianYear = parseInt(year) + 1911;
+        const lastDay = new Date(gregorianYear, parseInt(month), 0).getDate();
+
+        if (lines.g1.length > 0) {
+            reportText += `本大隊${year}年${month}月1日至${month}月7日查詢紀錄，稽核情形如下：\n`;
+            lines.g1.forEach((l, i) => reportText += `(${i+1})\t${l}\n`);
+        }
+        if (lines.g2.length > 0) {
+            reportText += `\n本大隊${year}年${month}月8日至${month}月14日查詢紀錄，稽核情形如下：\n`;
+            lines.g2.forEach((l, i) => reportText += `(${i+1})\t${l}\n`);
+        }
+        if (lines.g3.length > 0) {
+            reportText += `\n本大隊${year}年${month}月15日至${month}月21日查詢紀錄，稽核情形如下：\n`;
+            lines.g3.forEach((l, i) => reportText += `(${i+1})\t${l}\n`);
+        }
+        if (lines.g4.length > 0) {
+            reportText += `\n本大隊${year}年${month}月22日至${month}月${lastDay}日查詢紀錄，稽核情形如下：\n`;
+            lines.g4.forEach((l, i) => reportText += `(${i+1})\t${l}\n`);
+        }
+        return reportText.trim();
+    }
+    
+    // A simplified text replacer for docx.js
+    function createParagraphWithReplacements(text, context) {
+        let currentText = text;
+        const runs = [];
+        const regex = /\{\{([^}]+)\}\}/g;
+        let lastIndex = 0;
+        let match;
+
+        while ((match = regex.exec(currentText)) !== null) {
+            // Add text before the placeholder
+            if (match.index > lastIndex) {
+                runs.push(new docx.TextRun(currentText.substring(lastIndex, match.index)));
+            }
+
+            const key = `{{${match[1]}}}`;
+            const value = context[key] || "";
+            
+            // Handle multiline values
+            if (String(value).includes('\n')) {
+                const lines = String(value).split('\n');
+                lines.forEach((line, index) => {
+                    if (index > 0) {
+                        runs.push(new docx.TextRun({ break: 1 }));
+                    }
+                    runs.push(new docx.TextRun(line));
+                });
+            } else {
+                 runs.push(new docx.TextRun({ text: String(value), bold: true }));
+            }
+
+            lastIndex = regex.lastIndex;
+        }
+
+        // Add any remaining text after the last placeholder
+        if (lastIndex < currentText.length) {
+            runs.push(new docx.TextRun(currentText.substring(lastIndex)));
+        }
+        
+        return new docx.Paragraph({ children: runs });
+    }
+
+    async function exportToWord() {
+        if (FINAL_SAMPLED_DATA.length === 0) {
+            alert('沒有抽樣資料可供匯出。');
+            return;
+        }
+        const fileName = dom.wordFilename.value || '稽核簽文';
+        const templateFile = dom.wordTemplateInput.files[0];
+
+        updateStatus('正在產生 Word 檔案...', true);
+        
+        // --- 準備資料 Context ---
+        const sampledOi2Count = FINAL_SAMPLED_DATA.filter(r => r['作業種類'] === '戶政資料系統(OI2)').length;
+        const sampledOjCount = FINAL_SAMPLED_DATA.filter(r => r['作業種類'] === '國民身分證相片系統(OJ)').length;
+        const sampledMpCount = FINAL_SAMPLED_DATA.filter(r => String(r['作業種類']).toLowerCase().includes('m_police')).length;
+        const sampledAiCount = FINAL_SAMPLED_DATA.filter(r => r['作業種類'] === '智慧分析決策支援系統(AI)').length;
+        const mainSystemsCount = sampledOi2Count + sampledOjCount + sampledMpCount + sampledAiCount;
+        const otherSystemsCount = FINAL_SAMPLED_DATA.length - mainSystemsCount;
+        
+        const context = {
+            '{{audit_year}}': dom.auditYear.value,
+            '{{audit_month}}': dom.auditMonth.value,
+            '{{total_queries}}': FILTERED_DATA.length,
+            '{{total_abnormal_count}}': ABNORMAL_DATA.length,
+            '{{enet_total_count}}': FILTERED_DATA.length - (systemCounts['M_Police'] || 0),
+            '{{oi2_count}}': systemCounts['戶政資料系統(OI2)'] || 0,
+            '{{oj_count}}': systemCounts['國民身分證相片系統(OJ)'] || 0,
+            '{{mp_count}}': systemCounts['M_Police'] || 0,
+            '{{ai_count}}': systemCounts['智慧分析決策支援系統(AI)'] || 0,
+            '{{team1_total_count}}': teamCounts['第一小隊'] || 0,
+            '{{team2_total_count}}': teamCounts['第二小隊'] || 0,
+            '{{team3_total_count}}': teamCounts['第三小隊'] || 0,
+            '{{team4_total_count}}': teamCounts['第四小隊'] || 0,
+            '{{team5_total_count}}': teamCounts['第一分隊主管及大隊部主管'] || 0,
+            '{{overall_ratio}}': dom.overallRatioInput.value,
+            '{{total_samples_needed}}': dom.totalSamplesNeeded.textContent,
+            '{{total_sampled_count}}': FINAL_SAMPLED_DATA.length,
+            '{{sampled_oi2_count}}': sampledOi2Count,
+            '{{sampled_oj_count}}': sampledOjCount,
+            '{{sampled_mp_count}}': sampledMpCount,
+            '{{sampled_ai_count}}': sampledAiCount,
+            '{{sampled_other_count}}': otherSystemsCount,
+            '{{team1_sampled_count}}': FINAL_SAMPLED_DATA.filter(r => r['稽核單位'] === '第一小隊').length,
+            '{{team2_sampled_count}}': FINAL_SAMPLED_DATA.filter(r => r['稽核單位'] === '第二小隊').length,
+            '{{team3_sampled_count}}': FINAL_SAMPLED_DATA.filter(r => r['稽核單位'] === '第三小隊').length,
+            '{{team4_sampled_count}}': FINAL_SAMPLED_DATA.filter(r => r['稽核單位'] === '第四小隊').length,
+            '{{team5_sampled_count}}': FINAL_SAMPLED_DATA.filter(r => r['稽核單位'] === '第一分隊主管及大隊部主管').length,
+            '{{detailed_audit_summary}}': generateDetailedReportText(FINAL_SAMPLED_DATA),
+        };
+        
+        // --- 產生 Word ---
+        // docx.js can't easily replace text in a template like python-docx.
+        // A better approach for client-side is to generate a new document.
+        // If a template is provided, we can try a very basic text replace,
+        // but it's not reliable. For this version, we will generate from scratch.
+        const doc = new docx.Document({
+            sections: [{
+                properties: {},
+                children: [
+                    new docx.Paragraph({ text: "稽核紀錄報告", heading: docx.HeadingLevel.TITLE }),
+                    new docx.Paragraph({ text: `稽核年月: ${context['{{audit_year}}']}年 ${context['{{audit_month}}']}月`, style: "IntenseQuote" }),
+                    
+                    new docx.Paragraph({ text: "一、總體數據", heading: docx.HeadingLevel.HEADING_1 }),
+                    new docx.Table({
+                        width: { size: 100, type: docx.WidthType.PERCENTAGE },
+                        rows: [
+                            new docx.TableRow({ children: [new docx.TableCell({ children: [new docx.Paragraph("項目")] }), new docx.TableCell({ children: [new docx.Paragraph("數量")] })] }),
+                            new docx.TableRow({ children: [new docx.TableCell({ children: [new docx.Paragraph("總查詢次數")] }), new docx.TableCell({ children: [new docx.Paragraph(String(context['{{total_queries}}']))] })] }),
+                            new docx.TableRow({ children: [new docx.TableCell({ children: [new docx.Paragraph("異常及可疑查詢")] }), new docx.TableCell({ children: [new docx.Paragraph(String(context['{{total_abnormal_count}}']))] })] }),
+                            new docx.TableRow({ children: [new docx.TableCell({ children: [new docx.Paragraph("總抽出筆數")] }), new docx.TableCell({ children: [new docx.Paragraph(String(context['{{total_sampled_count}}']))] })] }),
+                        ],
+                    }),
+                    
+                     new docx.Paragraph({ text: "二、稽核情形", heading: docx.HeadingLevel.HEADING_1 }),
+                     ...context['{{detailed_audit_summary}}'].split('\n').map(line => {
+                         if (line.trim() === '') return new docx.Paragraph("");
+                         if (line.startsWith('(')) {
+                             const parts = line.split('\t');
+                             return new docx.Paragraph({ children: [new docx.TextRun(parts[0]), new docx.TextRun({text: `\t${parts[1]}`})] });
+                         }
+                         return new docx.Paragraph({ text: line, style: "IntenseQuote", bold: true });
+                     }),
+                ],
+            }],
+        });
+        
+        docx.Packer.toBlob(doc).then(blob => {
+            saveAs(blob, `${fileName}.docx`);
+            updateStatus('Word 檔案已匯出！', false);
+        });
+    }
+
+
+    // --- APP INITIALIZATION ---
+    document.addEventListener('DOMContentLoaded', init);
+
+    </script>
+</body>
+</html>
