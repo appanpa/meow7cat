@@ -16,6 +16,10 @@
     
     <!-- SheetJS (xlsx.js) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <!-- 【新增】引入 Font Awesome 圖示庫 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
     <style>
         /* CSS is the same as previous versions */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f4f7f9; color: #333; line-height: 1.6; margin: 0; padding: 20px; }
@@ -43,6 +47,14 @@
 </head>
 <body>
     <div class="container">
+
+        <!-- 【新增】返回主頁按鈕 -->
+        <!-- 假設您的主頁檔案名稱是 index.html -->
+        <a href="index.html" title="返回主頁" 
+           style="position: absolute; top: 20px; left: 20px; font-size: 1.5rem; color: #9ca3af; transition: color 0.2s ease;">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        
         <h1>行車軌跡停留分析工具 <small>v8 - 錯誤修正版</small></h1>
         <div class="controls">
             <div class="control-group"><label for="fileInput">1. 選擇 Excel 檔案</label><input type="file" id="fileInput" accept=".xlsx, .xls, .csv"></div>
