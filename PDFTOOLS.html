@@ -12,6 +12,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    <!-- 【新增】引入 Font Awesome 圖示庫 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- 引入 pdf-lib.js，用於修改 PDF -->
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <style>
@@ -166,6 +168,13 @@
     </style>
 </head>
 <body class="p-4 md:p-8">
+
+    <!-- 【新增】返回主頁按鈕 -->
+    <!-- 假設您的主頁檔案名稱是 index.html -->
+    <a href="index.html" title="返回主頁" 
+        style="position: absolute; top: 20px; left: 20px; font-size: 1.5rem; color: #9ca3af; transition: color 0.2s ease;">
+        <i class="fas fa-arrow-left"></i>
+    </a>
 
     <div id="error-popup"></div>
 
@@ -414,3 +423,4 @@
     </script>
 </body>
 </html>
+
