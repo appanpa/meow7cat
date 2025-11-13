@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>行車軌跡停留分析工具 (v8 - 地圖視覺化)</title>
+    
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Leaflet.markercluster CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    
+    <!-- SheetJS (xlsx.js) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        /* CSS is the same as previous versions */
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f4f7f9; color: #333; line-height: 1.6; margin: 0; padding: 20px; }
+        .container { max-width: 1300px; margin: 0 auto; background-color: #fff; padding: 25px 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
+        h1 { color: #2c3e50; text-align: center; border-bottom: 2px solid #e0e0e0; padding-bottom: 15px; margin-top: 0; }
+        h1 small { display: block; font-size: 0.5em; color: #3498db; font-weight: 500; }
+        .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; align-items: end; padding: 20px; background-color: #f8f9fa; border-radius: 6px; margin-bottom: 25px; }
+        .control-group { display: flex; flex-direction: column; }
+        label { font-weight: 600; margin-bottom: 5px; font-size: 0.9em; color: #555; }
+        input[type="file"], input[type="number"] { border: 1px solid #ccc; padding: 8px; border-radius: 4px; width: 100%; box-sizing: border-box; }
+        button { padding: 10px 20px; background-color: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1em; transition: background-color 0.3s ease; height: 40px; }
+        button:disabled { background-color: #a9cce3; cursor: not-allowed; }
+        #status { margin-top: 20px; padding: 15px; border-radius: 4px; background-color: #e9ecef; border-left: 5px solid #6c757d; }
+        .loader { border: 5px solid #f3f3f3; border-top: 5px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; display: none; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #map { height: 500px; width: 100%; margin-top: 25px; border-radius: 6px; border: 1px solid #ccc; }
+        .results-container { margin-top: 25px; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 10px 12px; text-align: left; white-space: nowrap; }
+        th.sortable { cursor: pointer; position: relative; background-color: #34495e; color: white; }
+        .sort-indicator { margin-left: 8px; }
+        td a { color: #3498db; text-decoration: none; }
+        #exportBtn { display: none; margin-top: 20px; background-color: #27ae60; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>行車軌跡停留分析工具 <small>v8 - 錯誤修正版</small></h1>
+        <div class="controls">
+            <div class="control-group"><label for="fileInput">1. 選擇 Excel 檔案</label><input type="file" id="fileInput" accept=".xlsx, .xls, .csv"></div>
+            <div class="control-group"><label for="clusterDistance">2. 分群距離 (公尺)</label><input type="number" id="clusterDistance" value="20" min="1"></div>
+            <div class="control-group"><label for="minDuration">3. 最小停留秒數</label><input type="number" id="minDuration" value="10" min="1"></div>
+            <button id="processBtn">4. 開始分析</button>
+        </div>
+        <div id="status">請選擇檔案並設定參數。您的檔案不會被上傳。</div>
+        <div class="loader" id="loader"></div>
+        <div id="map"></div>
+        <div class="results-container">
+            <button id="exportBtn">匯出結果為 CSV</button>
+            <div id="resultsTable"></div>
+            <button id="loadMoreBtn" style="display:none; width:100%; margin-top:15px; padding:10px;">載入更多</button>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const processBtn = document.getElementById('processBtn');
+        const fileInput = document.getElementById('fileInput');
+        const minDurationInput = document.getElementById('minDuration');
+        const clusterDistanceInput = document.getElementById('clusterDistance');
+        const statusDiv = document.getElementById('status');
+        const loader = document.getElementById('loader');
+        const resultsTableDiv = document.getElementById('resultsTable');
+        const exportBtn = document.getElementById('exportBtn');
+        const loadMoreBtn = document.getElementById('loadMoreBtn');
+        
+        // State
+        let allResultsData = [];
+        let displayedRows = 0;
+        const ROWS_PER_PAGE = 100;
+        let currentSortColumn = '最早時間', currentSortDirection = 'asc';
+        let map, markerClusterGroup;
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            map = L.map('map').setView([23.97, 120.98], 8);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap'
+            }).addTo(map);
+            markerClusterGroup = L.markerClusterGroup();
+            map.addLayer(markerClusterGroup);
+        });
+        
+        processBtn.addEventListener('click', handleFile);
+        loadMoreBtn.addEventListener('click', () => renderTable(false));
+
+        // --- ASYNC PROCESSING LOGIC ---
+        function runAsyncTask(taskGenerator) {
+            const task = taskGenerator();
+            return new Promise((resolve, reject) => {
+                function step() {
+                    try {
+                        const { value, done } = task.next();
+                        if (done) {
+                            resolve(value);
+                        } else {
+                            requestAnimationFrame(step);
+                        }
+                    } catch (e) {
+                        reject(e);
+                    }
+                }
+                step();
+            });
+        }
+        
+        async function handleFile() {
+            const file = fileInput.files[0];
+            if (!file) { logStatus('錯誤：請先選擇一個檔案！', true); return; }
+            resetUI();
+            logStatus(`步驟 1: 正在讀取檔案...`);
+            try {
+                const fileBuffer = await file.arrayBuffer();
+                const workbook = XLSX.read(fileBuffer, { type: 'array', cellDates: true });
+                const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                await processData(jsonData);
+            } catch (err) { handleError(`檔案處理失敗: ${err.message}`); }
+        }
+
+        async function processData(data) {
+            try {
+                const requiredCols = ['#', '日期/時間', '地址', '狀態', 'Km/h', '緯度', '經度'];
+                if (!checkRequiredColumns(data, requiredCols)) return;
+
+                // 【FIX】Removed the extra invocation parentheses () from all runAsyncTask calls
+                const cleanedData = await runAsyncTask(function*() {
+                    logStatus('步驟 2.1: 清理資料...');
+                    yield;
+                    return cleanAndTransformData(data);
+                });
+                
+                const filteredData = await runAsyncTask(function*() {
+                    const result = [];
+                    const total = cleanedData.length;
+                    for (let i = 0; i < total; i++) {
+                        if (i % 2000 === 0) {
+                            logStatus(`步驟 3: 篩選中... (${i}/${total})`);
+                            yield;
+                        }
+                        const row = cleanedData[i];
+                        if (row['地址'] !== 'GPS 未定位' && row['狀態'] !== '行駛' && row['Km/h'] >= 0 && row['Km/h'] <= 3) {
+                            result.push(row);
+                        }
+                    }
+                    logStatus(`-> 篩選後剩餘 ${result.length} 筆資料。`);
+                    return result;
+                });
+
+                if (filteredData.length === 0) { logStatus('篩選後無資料可分析。'); stopLoading(); return; }
+                filteredData.sort((a, b) => a['日期/時間'] - b['日期/時間']);
+                
+                const aggregatedEvents = await runAsyncTask(function*() {
+                    logStatus('步驟 4: 空間分群...');
+                    const clusterDistance = parseFloat(clusterDistanceInput.value);
+                    const events = clusterDataByDistance(filteredData, clusterDistance);
+                    const result = events.map(eventGroup => {
+                        const first = eventGroup[0], last = eventGroup[eventGroup.length - 1];
+                        const avgCoords = calculateAverageCoords(eventGroup);
+                        return { '地址': first['地址'], '最早時間': first['日期/時間'], '最晚時間': last['日期/時間'], '開始序號': first['#'], '結束序號': last['#'], '停留秒數': (last['日期/時間'] - first['日期/時間']) / 1000, '緯度': avgCoords.lat, '經度': avgCoords.lon };
+                    });
+                    logStatus(`-> 計算出 ${result.length} 個停留事件。`);
+                    yield;
+                    return result;
+                });
+
+                const minDuration = parseInt(minDurationInput.value, 10);
+                logStatus(`步驟 5: 過濾停留時間小於 ${minDuration} 秒的事件...`);
+                allResultsData = aggregatedEvents.filter(event => event.停留秒數 >= minDuration);
+                logStatus(`-> 過濾後，剩餘 ${allResultsData.length} 個有效的停留事件。`);
+
+                sortTable(currentSortColumn, true);
+
+            } catch (err) { handleError(`資料處理錯誤: ${err.message}`); }
+        }
+
+        // --- DISPLAY LOGIC ---
+        function displayResults() {
+            renderTable(true);
+            renderMap();
+            stopLoading();
+        }
+
+        async function renderMap() {
+            markerClusterGroup.clearLayers();
+            if (allResultsData.length === 0) { map.setView([23.97, 120.98], 8); return; }
+
+            // 【FIX】Removed extra invocation parentheses ()
+            await runAsyncTask(function*() {
+                const markers = [];
+                const total = allResultsData.length;
+                const durations = allResultsData.map(d => d.停留秒數);
+                const minDuration = Math.min(...durations), maxDuration = Math.max(...durations);
+
+                for(let i = 0; i < total; i++) {
+                    if (i % 200 === 0) {
+                        logStatus(`步驟 6: 渲染地圖標記... (${i}/${total})`);
+                        yield;
+                    }
+                    const row = allResultsData[i];
+                    const radius = calculateRadius(row.停留秒數, minDuration, maxDuration);
+                    const marker = L.circleMarker([row.緯度, row.經度], { radius, fillColor: "#3498db", color: "#2c3e50", weight: 1, fillOpacity: 0.6 });
+                    marker.bindPopup(`<b>地址:</b> ${row.地址}<br><b>停留時間:</b> ${formatSeconds(row.停留秒數)}`);
+                    markers.push(marker);
+                }
+                markerClusterGroup.addLayers(markers);
+                if (markers.length > 0) {
+                    map.fitBounds(markerClusterGroup.getBounds(), { padding: [50, 50] });
+                }
+                logStatus(`分析完成！共找到 ${total} 個有效停留事件。`);
+            });
+        }
+        
+        // ... Other functions remain unchanged ...
+        function renderTable(reset = false) { if (reset) { displayedRows = 0; resultsTableDiv.innerHTML = ''; } const dataToRender = allResultsData.slice(0, displayedRows + ROWS_PER_PAGE); if (dataToRender.length === 0) { resultsTableDiv.innerHTML = '<p>沒有找到符合條件的停留事件。</p>'; loadMoreBtn.style.display = 'none'; return; } let tableHTML = ''; if (reset) { const headers = [ { key: '開始序號', text: '開始序號' }, { key: '結束序號', text: '結束序號' }, { key: '地址', text: '地址' }, { key: '緯度', text: '座標 (地圖)' }, { key: '最早時間', text: '最早時間' }, { key: '最晚時間', text: '最晚時間' }, { key: '停留秒數', text: '停留時間' }, ]; tableHTML += '<table><thead><tr>'; headers.forEach(h => { const sortClass = h.key === currentSortColumn ? `sorted-${currentSortDirection}` : ''; const indicator = h.key === currentSortColumn ? (currentSortDirection === 'asc' ? '▲' : '▼') : '↕'; tableHTML += `<th class="sortable ${sortClass}" data-sort-key="${h.key}">${h.text} <span class="sort-indicator">${indicator}</span></th>`; }); tableHTML += '</tr></thead><tbody></tbody></table>'; resultsTableDiv.innerHTML = tableHTML; document.querySelectorAll('th.sortable').forEach(th => { th.addEventListener('click', () => sortTable(th.dataset.sortKey)); }); } const tableBody = resultsTableDiv.querySelector('tbody'); let rowsHTML = ''; allResultsData.slice(displayedRows, displayedRows + ROWS_PER_PAGE).forEach(row => { const gmapsUrl = `https://www.google.com/maps?q=${row.緯度},${row.經度}`; rowsHTML += `<tr><td>${row.開始序號}</td><td>${row.結束序號}</td><td>${row.地址}</td><td><a href="${gmapsUrl}" target="_blank">${row.緯度}, ${row.經度}</a></td><td>${formatDate(row.最早時間)}</td><td>${formatDate(row.最晚時間)}</td><td>${formatSeconds(row.停留秒數)}</td></tr>`; }); tableBody.innerHTML += rowsHTML; displayedRows = tableBody.rows.length; if (displayedRows < allResultsData.length) { loadMoreBtn.style.display = 'block'; } else { loadMoreBtn.style.display = 'none'; } exportBtn.style.display = 'inline-block'; }
+        function sortTable(sortKey) { currentSortDirection = (currentSortColumn === sortKey && currentSortDirection === 'asc') ? 'desc' : 'asc'; currentSortColumn = sortKey; allResultsData.sort((a, b) => { const valA = a[sortKey], valB = b[sortKey]; if (valA > valB) return currentSortDirection === 'asc' ? 1 : -1; if (valA < valB) return currentSortDirection === 'asc' ? -1 : 1; return 0; }); displayResults(); }
+        function calculateRadius(duration, min, max) { const minR = 6, maxR = 40; if (max <= min) return minR; const scale = (duration - min) / (max - min); return minR + scale * (maxR - minR); }
+        function resetUI() { processBtn.disabled = true; loader.style.display = 'block'; resultsTableDiv.innerHTML = ''; exportBtn.style.display = 'none'; loadMoreBtn.style.display = 'none'; allResultsData = []; displayedRows = 0; markerClusterGroup.clearLayers(); }
+        function stopLoading() { loader.style.display = 'none'; processBtn.disabled = false; }
+        function handleError(message) { logStatus(message, true); stopLoading(); }
+        function logStatus(message, isError = false) { statusDiv.textContent = message; statusDiv.style.borderColor = isError ? '#c0392b' : '#6c757d'; }
+        function checkRequiredColumns(data, cols) { if(data.length > 0){ const missing = cols.filter(c => !data[0].hasOwnProperty(c)); if (missing.length > 0) { handleError(`錯誤：Excel 缺少欄位: ${missing.join(', ')}`); return false; } } return true; }
+        function cleanAndTransformData(data) { return data.map(row => ({ '#': Number(row['#']), '日期/時間': row['日期/時間'] instanceof Date ? row['日期/時間'] : new Date(row['日期/時間']), '地址': String(row['地址'] || '').trim(), '狀態': String(row['狀態'] || '').trim(), 'Km/h': Number(row['Km/h']), '緯度': parseFloat(row['緯度']), '經度': parseFloat(row['經度']) })).filter(r => !Object.values(r).some(v => v === null || (typeof v === 'number' && isNaN(v)) || (v instanceof Date && isNaN(v.getTime())))); }
+        function haversineDistance(lat1, lon1, lat2, lon2) { const R = 6371000; const toRad = (v) => (v * Math.PI) / 180; const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1); const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2; return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)); }
+        function calculateAverageCoords(points) { const count = points.length; if (count === 0) return { lat: 0, lon: 0 }; const sum = points.reduce((acc, p) => ({ lat: acc.lat + p['緯度'], lon: acc.lon + p['經度'] }), { lat: 0, lon: 0 }); return { lat: parseFloat((sum.lat / count).toFixed(6)), lon: parseFloat((sum.lon / count).toFixed(6)) }; }
+        function clusterDataByDistance(data, threshold) { if (data.length === 0) return []; let clusters = [], current = [data[0]]; for (let i = 1; i < data.length; i++) { if (haversineDistance(data[i-1]['緯度'], data[i-1]['經度'], data[i]['緯度'], data[i]['經度']) <= threshold) { current.push(data[i]); } else { clusters.push(current); current = [data[i]]; } } clusters.push(current); return clusters; }
+        function formatDate(date) { return date.toLocaleString('sv-SE').slice(0, 19); }
+        function formatSeconds(s) { const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`; }
+        function exportToCsv() { if (allResultsData.length === 0) return; const headers = ['開始序號', '結束序號', '地址', '緯度', '經度', '最早時間', '最晚時間', '停留時間']; let csv = headers.join(',') + '\r\n'; allResultsData.forEach(row => { const values = [ row['開始序號'], row['結束序號'], `"${row['地址']}"`, row['緯度'], row['經度'], formatDate(row['最早時間']), formatDate(row['最晚時間']), formatSeconds(row['停留秒數']) ]; csv += values.join(',') + '\r\n'; }); const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' }); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = "spatial_stay_analysis_v8.csv"; link.click(); }
+    </script>
+</body>
+</html>
